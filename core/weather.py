@@ -1,122 +1,208 @@
 """
-FarmerHub AI — Weather-Based Decision Support (stretch module)
---------------------------------------------------------------------
-Uses OpenWeatherMap's 5-day/3-hour forecast endpoint (NOT the current-
-conditions endpoint -- that only gives right-now weather, and irrigation
-/ planting advice needs to look 48h ahead) to produce rule-based advice.
-No ML here, per the proposal -- this is deliberately simple logic.
+FarmerHub AI — Weather-Based Decision Support
+-----------------------------------------------
+Turns live OpenWeatherMap forecast data into farmer-facing alerts:
+  - Rain expected in the next 48h (for spray-timing decisions)
+  - Dry-spell detection -> irrigation alerts
+  - Favorable-rain detection -> planting window recommendations
+
+Location can be given as a Ghana region name (mapped to its capital
+via REGION_TO_TOWN) or a specific town/city name.
+
+Note: the free OpenWeatherMap tier only provides a 5-day/3-hour
+forecast, not historical data -- so this gives short-term tactical
+signals ("irrigate this week"), not seasonal planting guidance
+("the rainy season is starting").
 """
 
 import os
-
+import math
 import requests
-from dotenv import load_dotenv
+from collections import defaultdict
 
-load_dotenv()
 API_KEY = os.getenv("OWM_API_KEY")
 
-FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
-
-# Farmers register by region, not GPS coordinates, so we map each region
-# to a representative town for the API call. Rough approximation --
-# regional weather varies internally, which is why get_weather_advice
-# also accepts an explicit `town` override.
-REGION_TOWNS = {
-    "ASHANTI": "Kumasi,GH",
-    "WESTERN": "Sekondi,GH",
-    "WESTERN NORTH": "Sefwi Wiawso,GH",
-    "EASTERN": "Koforidua,GH",
-    "CENTRAL": "Cape Coast,GH",
-    "GREATER ACCRA": "Accra,GH",
-    "VOLTA": "Ho,GH",
-    "OTI": "Dambai,GH",
-    "NORTHERN": "Tamale,GH",
-    "SAVANNAH": "Damongo,GH",
-    "NORTH EAST": "Nalerigu,GH",
-    "UPPER EAST": "Bolgatanga,GH",
-    "UPPER WEST": "Wa,GH",
-    "BONO": "Sunyani,GH",
-    "BONO EAST": "Techiman,GH",
-    "AHAFO": "Goaso,GH",
+REGION_TO_TOWN = {
+    "AHAFO": "Goaso",
+    "ASHANTI": "Kumasi",
+    "BONO": "Sunyani",
+    "BONO EAST": "Techiman",
+    "CENTRAL": "Cape Coast",
+    "EASTERN": "Koforidua",
+    "GREATER ACCRA": "Accra",
+    "NORTHEAST": "Nalerigu",
+    "NORTHERN": "Tamale",
+    "OTI": "Dambai",
+    "SAVANNAH": "Damongo",
+    "UPPER EAST": "Bolgatanga",
+    "UPPER WEST": "Wa",
+    "VOLTA": "Ho",
+    "WESTERN": "Sekondi",
+    "WESTERN NORTH": "Sefwi Wiawso",
 }
 
-RAIN_THRESHOLD_MM = 1.0   # below this, treated as "no meaningful rain"
-FORECAST_SLOTS_48H = 16   # OpenWeatherMap gives 3-hour steps -> 16 = 48h
 
+# ---------------------------------------------------------------------
+# Geocoding + forecast fetch
+# ---------------------------------------------------------------------
 
-def get_weather_advice(region: str, town: str | None = None) -> dict:
-    """
-    Returns rule-based irrigation and planting advice for a region/town,
-    based on the next 48 hours of forecast data.
-    """
-    if not API_KEY:
-        raise RuntimeError(
-            "OWM_API_KEY is not set. Create a .env file next to main.py "
-            "with OWM_API_KEY=your_key_here (see README)."
-        )
-
-    location_warning = None
-    query = town if town else REGION_TOWNS.get(region.upper())
-    if not query:
-        query = REGION_TOWNS["GREATER ACCRA"]
-        location_warning = (
-            f"No known town mapping for region '{region}' -- "
-            f"defaulted to Accra. Pass an explicit 'town' for accuracy."
-        )
-
+def geocode_location(name, api_key=None, country_code="GH"):
+    """Converts a place name into lat/lon using OpenWeatherMap's Geocoding API."""
+    api_key = api_key or API_KEY
     resp = requests.get(
-        FORECAST_URL,
-        params={"q": query, "appid": API_KEY, "units": "metric"},
-        timeout=10,
+        "https://api.openweathermap.org/geo/1.0/direct",
+        params={"q": f"{name},{country_code}", "limit": 1, "appid": api_key}
     )
-    resp.raise_for_status()
-    data = resp.json()
+    results = resp.json()
+    if not results:
+        return None, None
+    return results[0]["lat"], results[0]["lon"]
 
-    slots = data.get("list", [])[:FORECAST_SLOTS_48H]
-    if not slots:
-        raise RuntimeError(f"No forecast data returned for '{query}'")
 
-    rain_amount_mm = sum(slot.get("rain", {}).get("3h", 0.0) for slot in slots)
-    rain_expected_48h = rain_amount_mm >= RAIN_THRESHOLD_MM
-
-    # Count consecutive dry days from now, using calendar date per slot
-    dry_days_forecasted = 0
-    seen_dates = {}
-    for slot in slots:
-        date = slot["dt_txt"].split(" ")[0]
-        rained = slot.get("rain", {}).get("3h", 0.0) >= RAIN_THRESHOLD_MM
-        seen_dates.setdefault(date, False)
-        if rained:
-            seen_dates[date] = True
-    for date in sorted(seen_dates):
-        if seen_dates[date]:
-            break
-        dry_days_forecasted += 1
-
-    irrigation_alert = not rain_expected_48h
-    irrigation_message = (
-        "No significant rain expected in the next 48 hours -- irrigation recommended."
-        if irrigation_alert else None
+def get_forecast(lat, lon, api_key=None):
+    api_key = api_key or API_KEY
+    resp = requests.get(
+        "https://api.openweathermap.org/data/2.5/forecast",
+        params={"lat": lat, "lon": lon, "appid": api_key, "units": "metric"}
     )
+    return resp.json()
 
-    # Simple rule: recommend planting if rain is coming but not so much
-    # it risks flooding/waterlogging young plants
-    planting_recommended = rain_expected_48h and rain_amount_mm < 40.0
-    if rain_expected_48h and rain_amount_mm >= 40.0:
-        planting_message = f"Heavy rain expected (~{rain_amount_mm:.0f}mm) -- consider delaying planting to avoid waterlogging."
-    elif planting_recommended:
-        planting_message = f"Moderate rain expected (~{rain_amount_mm:.0f}mm) in the next 48 hours -- good conditions for planting."
+
+def resolve_location(location_name, api_key=None):
+    """Accepts either a Ghana region name (mapped to its capital via
+    REGION_TO_TOWN) or a specific town/city name directly."""
+    town = REGION_TO_TOWN.get(location_name.upper())
+    query = town if town else location_name
+    return geocode_location(query, api_key)
+
+
+# ---------------------------------------------------------------------
+# Location cross-check (region dropdown + optional town field)
+# ---------------------------------------------------------------------
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Straight-line distance between two coordinates, in km."""
+    R = 6371
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+def validate_town_matches_region(town_name, region_name, api_key=None, threshold_km=100):
+    api_key = api_key or API_KEY
+    town_lat, town_lon = geocode_location(town_name, api_key)
+    if town_lat is None:
+        return False, None, f"Could not find '{town_name}' — check the spelling."
+
+    region_capital = REGION_TO_TOWN.get(region_name.upper())
+    if region_capital is None:
+        return False, None, f"'{region_name}' is not a recognized region."
+
+    region_lat, region_lon = geocode_location(region_capital, api_key)
+    distance = haversine_km(town_lat, town_lon, region_lat, region_lon)
+
+    if distance > threshold_km:
+        return False, distance, (
+            f"'{town_name}' looks far from {region_name} region "
+            f"(~{distance:.0f}km from {region_capital}). Please double-check."
+        )
+    return True, distance, None
+
+
+# ---------------------------------------------------------------------
+# Core weather signals
+# ---------------------------------------------------------------------
+
+def _daily_rain_totals(forecast_json):
+    """Groups the 5-day/3-hour forecast into full-day totals. Only
+    returns days with all 8 blocks present -- partial days at the start
+    and end of the forecast window don't have enough data to judge fairly."""
+    daily_rain = defaultdict(float)
+    daily_block_count = defaultdict(int)
+    for block in forecast_json["list"]:
+        date = block["dt_txt"].split(" ")[0]
+        rain_mm = block.get("rain", {}).get("3h", 0)
+        daily_rain[date] += rain_mm
+        daily_block_count[date] += 1
+    return {d: total for d, total in daily_rain.items() if daily_block_count[d] == 8}
+
+
+def check_rain_expected(forecast_json, hours=48, pop_threshold=0.5):
+    """Returns True if any upcoming 3h block has a high chance of rain."""
+    blocks_needed = hours // 3
+    upcoming = forecast_json["list"][:blocks_needed]
+    for block in upcoming:
+        if block["pop"] >= pop_threshold:
+            rain_mm = block.get("rain", {}).get("3h", 0)
+            return True, block["dt_txt"], rain_mm
+    return False, None, 0
+
+
+def check_dry_spell(forecast_json, daily_threshold_mm=1.0):
+    """Counts how many full days are forecasted as dry."""
+    full_days = _daily_rain_totals(forecast_json)
+    dry_days = [d for d, total in full_days.items() if total < daily_threshold_mm]
+    return len(dry_days), full_days
+
+
+# ---------------------------------------------------------------------
+# Farmer-facing alerts
+# ---------------------------------------------------------------------
+
+def get_irrigation_alert(forecast_json, dry_day_threshold=3):
+    dry_count, _ = check_dry_spell(forecast_json)
+    if dry_count >= dry_day_threshold:
+        return True, f"Irrigate now — {dry_count} dry day(s) forecasted with no significant rain."
+    return False, None
+
+
+def check_planting_window(forecast_json, min_moderate_days=2, heavy_mm=15.0, light_mm=1.0):
+    full_days = _daily_rain_totals(forecast_json)
+    moderate_days = [d for d, t in full_days.items() if light_mm <= t <= heavy_mm]
+    heavy_days = [d for d, t in full_days.items() if t > heavy_mm]
+
+    if heavy_days:
+        return False, "Heavy rain expected — risk of seed washout, hold off planting."
+    elif len(moderate_days) >= min_moderate_days:
+        return True, f"Good window to plant — steady rain expected over the next {len(moderate_days)} day(s)."
     else:
-        planting_message = None
+        return False, "Too dry for planting right now — irrigate first."
 
-    return dict(
-        location_name=query,
-        rain_expected_48h=rain_expected_48h,
-        rain_amount_mm=round(rain_amount_mm, 1),
-        dry_days_forecasted=dry_days_forecasted,
-        irrigation_alert=irrigation_alert,
-        irrigation_message=irrigation_message,
-        planting_recommended=planting_recommended,
-        planting_message=planting_message,
-        location_warning=location_warning,
-    )
+
+# ---------------------------------------------------------------------
+# Single entry point for the API endpoint
+# ---------------------------------------------------------------------
+
+def get_weather_advice(region, town=None, api_key=None):
+    """Bundles location resolution + all four signals into one response
+    dict, ready to be wrapped by the FastAPI endpoint in main.py."""
+    api_key = api_key or API_KEY
+    location_warning = None
+
+    if town:
+        is_consistent, _, warning = validate_town_matches_region(town, region, api_key)
+        location_warning = warning if not is_consistent else None
+        lat, lon = geocode_location(town, api_key)
+    else:
+        lat, lon = resolve_location(region, api_key)
+
+    forecast_data = get_forecast(lat, lon, api_key)
+
+    rain_soon, _, rain_amount = check_rain_expected(forecast_data)
+    dry_count, _ = check_dry_spell(forecast_data)
+    should_irrigate, irrigation_msg = get_irrigation_alert(forecast_data)
+    can_plant, planting_msg = check_planting_window(forecast_data)
+
+    return {
+        "location_name": forecast_data.get("city", {}).get("name", town or region),
+        "rain_expected_48h": rain_soon,
+        "rain_amount_mm": round(rain_amount, 2),
+        "dry_days_forecasted": dry_count,
+        "irrigation_alert": should_irrigate,
+        "irrigation_message": irrigation_msg,
+        "planting_recommended": can_plant,
+        "planting_message": planting_msg,
+        "location_warning": location_warning,
+    }
