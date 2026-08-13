@@ -1,0 +1,55 @@
+# ==========================================
+# Virtual Environment
+# ==========================================
+venv/
+.venv/
+env/
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+# IMPORTANT: NEVER commit your actual .env file
+.env
+*.env
+!.env.example
+
+# ==========================================
+# Python Bytecode & Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================================
+# Machine Learning Weights & Large Artifacts
+# ==========================================
+# Model binary/weight files
+*.h5
+*.pb
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.safetensors
+*.bin
+*.pkl
+
+# Directories for trained models or checkpoints
+saved_models/
+checkpoints/
+
+# ==========================================
+# Operating System & IDE Configs
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
