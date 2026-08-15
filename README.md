@@ -1,38 +1,46 @@
-HEAD
-# Group-6-Final-Project-FarmerHub
-# FarmerHub AI — Backend + Demo Frontend
+# FarmerHub AI — Backend & A* Route Optimization
 
-FastAPI backend for the three core modules, plus a lightweight demo
-frontend so you (or Louisa-Lois) can see it working visually before the
-real React app exists.
+**Module owner:** Daniel — Search Algorithms, Backend, AI Assistant (stretch)
+
+This is the backend server for FarmerHub AI: it hosts every team member's
+model behind one FastAPI app, and implements the A\* route optimization
+module (farm inspection/irrigation route planning, prioritizing
+high-risk plots).
+
+## What's in this module
+
+- **A\* route optimization** (`core/astar_route.py`, `core/grid_builder.py`,
+  `core/route_planner.py`) — finds the lowest-cost inspection route across
+  a farm grid, using an admissible heuristic and risk-weighted node costs
+  from the yield and disease models.
+- **Backend integration** (`main.py`) — the single point every other
+  module's work passes through: yield prediction, disease detection,
+  route planning, and weather advice, each exposed as an HTTP endpoint.
 
 ## Project structure
 
 ```
-farmerhub_backend/
-├── main.py                  # FastAPI app -- all endpoints live here
-├── requirements.txt
+backend/
+├── main.py                  # FastAPI app -- all endpoints
+├── requirements.txt          # pinned versions
 ├── core/
-│   ├── astar_route.py
-│   ├── grid_builder.py
-│   ├── route_planner.py
-│   ├── yield_connector.py       # yield-only, no TensorFlow needed
-│   ├── disease_connector.py     # disease-only, needs TensorFlow
-│   ├── integration_connectors.py # combines both, for convenience
-│   └── yield_model.py           # Chrishelle's script
+│   ├── astar_route.py        # A* search
+│   ├── grid_builder.py       # farm grid + risk-weight construction
+│   ├── route_planner.py      # multi-stop routing + travel time
+│   ├── yield_connector.py    # yield model integration (no TF dependency)
+│   ├── disease_connector.py  # disease model integration
+│   ├── integration_connectors.py  # combines yield + disease
+│   ├── yield_model.py        # Chrishelle's yield model
+│   └── weather.py            # Louisa-Lois's weather module
 ├── models/
 │   ├── yield_model.joblib
-│   ├── disease_model.keras      # currently a CPU-trained prototype
+│   ├── disease_model.keras
 │   └── class_names.json
-└── demo-frontend/
-    └── index.html            # plain HTML/JS demo page, no build step
+└── tests/
+    └── test_astar.py         # sanity + adversarial tests vs. Dijkstra
 ```
 
----
-
-## Part 1 — Backend setup
-
-### First time only
+## Setup
 
 ```bash
 python3 -m venv venv
@@ -42,103 +50,60 @@ venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 ```
 
-### Running it
+### Weather endpoint API key
+
+`/weather-advice` needs a real OpenWeatherMap key:
+
+1. Copy `.env.example` to `.env` in this folder.
+2. Replace `your_key_here` with a real key.
+3. Never commit `.env` or share a real key outside your own file — it's
+   already in `.gitignore`.
+
+## Running it
 
 ```bash
 uvicorn main:app --reload
 ```
 
-Wait for `Uvicorn running on http://127.0.0.1:8000` — the first request
-after starting can take a few seconds while TensorFlow and the models
-finish loading.
+Wait for `Uvicorn running on http://127.0.0.1:8000` (TensorFlow + model
+loading takes ~15-20s after that). Open `http://127.0.0.1:8000/docs`
+for the interactive API page.
 
-Confirm it's alive: open **http://127.0.0.1:8000/docs** for the
-interactive Swagger page, or **http://127.0.0.1:8000/health** for a
-quick JSON check.
-
-### Endpoints
+## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | Confirms the server and both models loaded |
 | POST | `/predict-yield` | Chrishelle's yield model |
-| POST | `/detect-disease` | Disease model (file upload) |
+| POST | `/detect-disease` | Kwasi's disease model (file upload) |
 | POST | `/plan-route` | A\* route optimization |
-| POST | `/weather-advice` | Rule-based irrigation/planting advice (stretch) |
+| POST | `/weather-advice` | Louisa-Lois's weather-based decision support |
 
-### Setting up `/weather-advice`
-
-This endpoint calls the OpenWeatherMap API and needs a real API key.
-
-1. Copy `.env.example` to a new file named `.env` in the same folder as `main.py`.
-2. Open `.env` and replace `your_key_here` with your real OpenWeatherMap key.
-3. **Never commit `.env` or paste a real key into a doc/screenshot/chat** — `.env` is already in `.gitignore`, keep it that way. If a real key has ever been shared anywhere outside your own `.env` file, rotate it on OpenWeatherMap's dashboard.
-4. OpenWeatherMap says new keys can take a couple hours to activate — until then this endpoint returns a clean `503` explaining the key isn't set/active yet, not a crash.
-
-Full request/response shapes are in `/docs`, or see the demo frontend's
-JavaScript for working examples of every call.
-
----
-
-## Part 2 — Demo frontend
-
-A single self-contained HTML page (`demo-frontend/index.html`) with a
-form for each endpoint. No npm, no React, no build step — just a browser
-and a running backend.
-
-### Running it
-
-1. **Keep the backend running** (Part 1, in its own terminal window).
-2. In a **second terminal**, serve the demo folder:
+## Testing
 
 ```bash
-cd demo-frontend
-python3 -m http.server 3000
+python -m pytest tests/test_astar.py -v
 ```
 
-3. Open **http://localhost:3000** in your browser.
+`test_astar.py` is the evaluation artifact for the A\* module (same role
+Kwasi's classification report and Chrishelle's MAE/MAPE numbers play for
+theirs). It includes:
+- Sanity checks (valid path found, obstacles avoided, unreachable goals
+  correctly reported)
+- An adversarial test and a 10-trial randomized comparison against a
+  from-scratch Dijkstra implementation, confirming A\*'s heuristic is
+  admissible (returns truly optimal routes, not just "a route")
 
-You should see a green status dot and "Backend is up — 38 disease
-classes loaded" at the top. If it's red, the backend isn't running or
-isn't reachable — check the first terminal.
+## Known open items
 
-### Why port 3000 specifically
-
-The backend's CORS settings (in `main.py`) only allow requests from a
-few known origins — `localhost:3000` and `localhost:5173` (React's and
-Vite's default dev ports). Serving the demo on `3000` matches that
-allowlist, so the browser will actually let the JavaScript talk to the
-API. If you serve it on a different port, you'll see CORS errors in the
-browser console — either use `3000`/`5173`, or add your port to the
-`allow_origins` list in `main.py`.
-
-### What each panel does
-
-- **Predict Yield** — pre-filled with the same example values used in
-  testing (Ashanti maize). Edit and submit to see a live prediction.
-- **Detect Disease** — upload any leaf photo. Remember the current model
-  is a CPU-trained prototype (~52% accuracy on a small subset), so don't
-  read too much into wrong predictions yet -- it's there to prove the
-  pipeline works end-to-end.
-- **Plan Route** — enter a grid size, obstacles, and risk-weighted
-  plots, and see the actual computed route and travel time.
-
-### This IS basically what Louisa-Lois will build, just rougher
-
-The demo page's JavaScript (`fetch()` calls with JSON bodies, or
-`FormData` for the image upload) is functionally identical to what a
-real React app will do to talk to this backend. If you want to preview
-how integration will feel before her UI exists, this is it.
-
----
-
-## Known limitations to fix before final submission
-
-- `disease_model.keras` is a CPU-trained prototype — swap in Kwasi's
-  real trained model + `class_names.json` once available. No code
-  changes needed, just replace the files in `models/`.
-- Per-plot farm data (soil, rainfall, crop, etc.) still needs a real
-  source — every test so far has used hand-entered values.
-- CORS currently only allows local dev ports — add the real deployed
-  frontend URL once one exists.
-f5d97d6 (Add backend weather and more)
+- `DISEASE_IMG_SIZE` in `main.py` is still `(96, 96)` — this matches the
+  current CPU-trained prototype model. Once Kwasi's real 256×256 model
+  is swapped into `models/`, this constant must change to `(256, 256)`
+  in the same commit, or predictions will be silently wrong.
+- CORS in `main.py` currently assumes a separate React/Vite dev server.
+  If the frontend ends up served directly by FastAPI as static files
+  instead, this config becomes unnecessary and should be removed —
+  decision pending with Louisa-Lois.
+- `demo-frontend/` (if present locally) is a personal dev/testing tool,
+  not a project deliverable — it's git-ignored and shouldn't be part of
+  the branch that merges into `main`.

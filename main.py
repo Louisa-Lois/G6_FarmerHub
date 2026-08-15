@@ -12,6 +12,7 @@ Docs at:   http://127.0.0.1:8000/docs
 
 import io
 import json
+import os
 
 import joblib
 import numpy as np
@@ -25,9 +26,20 @@ from pydantic import BaseModel, Field, field_validator
 load_dotenv()
 
 from core.yield_model import predict_yield
+from core.yield_service import YieldService
 from core.route_planner import yield_to_risk, plan_route, estimate_travel_time
 from core.grid_builder import build_grid
 from core.weather import get_weather_advice
+from core.plot_registry import (
+    register_plot, attach_photo, get_plots_data, get_plot_photos,
+    get_available_districts, get_available_crops,
+)
+from core.yield_connector import get_yield_risk_map
+from core.disease_connector import get_disease_risk_map
+from core.farm_health_dashboard import compute_farm_health
+
+PHOTO_UPLOAD_DIR = "uploaded_plot_photos"
+os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="FarmerHub AI Backend", version="0.1.0")
 
@@ -55,11 +67,16 @@ _yield_bundle = joblib.load("models/yield_model.joblib")
 YIELD_MODEL = _yield_bundle["model"]
 NATIONAL_AVG = _yield_bundle["national_avg"]
 
-DISEASE_MODEL = tf.keras.models.load_model("models/disease_model.keras")
+# YieldService wraps the same model bundle but looks up soil/rainfall/
+# potential-yield reference values itself, so a farmer only has to supply
+# region + crop instead of the 8 extra fields /predict-yield needs.
+YIELD_SERVICE = YieldService()
+
+tf.keras.models.load_model("models/farmerhub_disease_model.keras")
 with open("models/class_names.json") as f:
     CLASS_NAMES = json.load(f)
 
-DISEASE_IMG_SIZE = (96, 96)  # must match what the model was trained on
+DISEASE_IMG_SIZE = (256, 256)  # must match what the model was trained on -- Kwasi's real model, verified via model.input_shape
 
 
 # ---------------------------------------------------------------------
@@ -111,6 +128,60 @@ def predict_yield_endpoint(req: YieldRequest):
 
     risk = yield_to_risk(predicted, max_expected_yield=req.potential_yield)
     return YieldResponse(predicted_yield_mt_ha=round(predicted, 3), risk_score=round(risk, 3))
+
+
+# ---------------------------------------------------------------------
+# /predict-yield-estimate
+# ---------------------------------------------------------------------
+# A farmer cannot be expected to know their soil's pH, CEC, or nitrogen
+# level, which /predict-yield above requires. This endpoint only needs
+# region + crop; YieldService looks up soil, rainfall, and potential-yield
+# reference values internally and returns a regional (not farm-specific)
+# estimate. See core/yield_service.py for details and caveats.
+
+class YieldEstimateRequest(BaseModel):
+    region: str = Field(..., examples=["ASHANTI"])
+    crop: str = Field(..., examples=["MAIZE"])
+    year: int = Field(default=2024, examples=[2024])
+    rainfall_mm: float | None = Field(
+        default=None,
+        description="Optional forecasted rainfall. Defaults to the region's "
+                    "latest observed rainfall if omitted.",
+    )
+
+
+class YieldEstimateResponse(BaseModel):
+    predicted_yield_mt_ha: float
+    range_low_mt_ha: float
+    range_high_mt_ha: float
+    national_average_mt_ha: float
+    potential_yield_mt_ha: float
+    vs_national_average_pct: float
+    rainfall_used_mm: float
+    rainfall_vs_normal: str
+    region: str
+    crop: str
+    year: int
+    risk_score: float
+    confidence: str
+    basis: str
+    caveat: str
+
+
+@app.post("/predict-yield-estimate", response_model=YieldEstimateResponse)
+def predict_yield_estimate_endpoint(req: YieldEstimateRequest):
+    try:
+        result = YIELD_SERVICE.predict(
+            req.region, req.crop, year=req.year, rainfall_mm=req.rainfall_mm
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    risk = yield_to_risk(
+        result["predicted_yield_mt_ha"],
+        max_expected_yield=result["potential_yield_mt_ha"],
+    )
+    return YieldEstimateResponse(risk_score=round(risk, 3), **result)
 
 
 # ---------------------------------------------------------------------
@@ -261,9 +332,154 @@ def weather_advice_endpoint(req: WeatherRequest):
 
 
 # ---------------------------------------------------------------------
+# /register-plot, /districts, /crops, /upload-plot-photo
+# ---------------------------------------------------------------------
+# Lets a farmer register a plot with region + district + crop only.
+# plot_registry auto-fills the soil/rainfall fields get_yield_risk_map()
+# needs from district-level reference tables, so a farmer never has to
+# supply soil pH or CEC by hand. See core/plot_registry.py.
+
+class PlotRegistrationRequest(BaseModel):
+    row: int
+    col: int
+    region: str = Field(..., examples=["ASHANTI"])
+    district: str = Field(..., examples=["AMANSIE WEST"])
+    crop: str = Field(..., examples=["MAIZE"])
+    overrides: dict[str, float] | None = Field(
+        default=None,
+        description="Optional real soil-test values to override district "
+                    "defaults, e.g. {'soil_ph': 6.2}",
+    )
+
+
+class PlotRegistrationResponse(BaseModel):
+    row: int
+    col: int
+    plot_data: dict
+
+
+@app.post("/register-plot", response_model=PlotRegistrationResponse)
+def register_plot_endpoint(req: PlotRegistrationRequest):
+    try:
+        plot_data = register_plot(
+            row=req.row, col=req.col,
+            region=req.region, district=req.district, crop=req.crop,
+            overrides=req.overrides,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return PlotRegistrationResponse(row=req.row, col=req.col, plot_data=plot_data)
+
+
+@app.get("/districts/{region}")
+def list_districts(region: str):
+    districts = get_available_districts(region)
+    if not districts:
+        raise HTTPException(status_code=404, detail=f"No districts found for region '{region}'")
+    return {"region": region.upper(), "districts": districts}
+
+
+@app.get("/crops/{region}/{district}")
+def list_crops(region: str, district: str):
+    crops = get_available_crops(region, district)
+    if not crops:
+        raise HTTPException(status_code=404, detail=f"No crops found for '{district}', '{region}'")
+    return {"region": region.upper(), "district": district.upper(), "crops": crops}
+
+
+@app.post("/upload-plot-photo")
+async def upload_plot_photo_endpoint(row: int, col: int, file: UploadFile = File(...)):
+    contents = await file.read()
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    photo_path = os.path.join(PHOTO_UPLOAD_DIR, f"{row}_{col}.{ext}")
+    with open(photo_path, "wb") as f:
+        f.write(contents)
+
+    try:
+        attach_photo(row, col, photo_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"row": row, "col": col, "photo_path": photo_path}
+
+
+# ---------------------------------------------------------------------
+# /farm-health
+# ---------------------------------------------------------------------
+# Combines every registered plot's yield risk, disease risk (for plots
+# with an uploaded photo), and farm-wide weather into one Farm Health
+# Score plus a per-plot urgency + recommendation. See
+# core/farm_health_dashboard.py.
+
+class PlotHealth(BaseModel):
+    urgency: float
+    yield_risk: float
+    disease_risk: float
+    recommendation: str | None
+
+
+class WeatherSummary(BaseModel):
+    rain_expected_48h: bool
+    irrigation_alert: bool
+    planting_recommended: bool
+    planting_message: str | None
+
+
+class FarmHealthResponse(BaseModel):
+    farm_health_score: float
+    plots: dict[str, PlotHealth]
+    weather_summary: WeatherSummary
+
+
+@app.get("/farm-health", response_model=FarmHealthResponse)
+def farm_health_endpoint(region: str | None = None, town: str | None = None):
+    plots_data = get_plots_data()
+    if not plots_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No plots registered yet -- register at least one plot first.",
+        )
+
+    yield_risk_map = get_yield_risk_map(plots_data, YIELD_MODEL, NATIONAL_AVG)
+
+    plot_photos = get_plot_photos()
+    disease_risk_map = (
+        get_disease_risk_map(plot_photos, DISEASE_MODEL, CLASS_NAMES, img_size=DISEASE_IMG_SIZE)
+        if plot_photos else {}
+    )
+
+    # Weather is farm-wide (OpenWeatherMap has no plot-level resolution),
+    # so it needs one region. Use the caller's region/town if given,
+    # otherwise fall back to whichever region the first registered plot
+    # is in -- reasonable for the common case of one farm, one region.
+    weather_region = region or next(iter(plots_data.values()))["region"]
+    try:
+        weather_advice = get_weather_advice(region=weather_region, town=town)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Weather API request failed: {e}")
+
+    result = compute_farm_health(yield_risk_map, disease_risk_map, weather_advice)
+    result["plots"] = {f"{r},{c}": v for (r, c), v in result["plots"].items()}
+
+    return FarmHealthResponse(**result)
+
+
+# ---------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------
 
+@app.get("/yield-options")
+def yield_options():
+    """Dropdown contents for a region/crop yield-estimate form."""
+    return YIELD_SERVICE.options()
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "disease_classes_loaded": len(CLASS_NAMES)}
+    return {
+        "status": "ok",
+        "disease_classes_loaded": len(CLASS_NAMES),
+        "plots_registered": len(get_plots_data()),
+    }
