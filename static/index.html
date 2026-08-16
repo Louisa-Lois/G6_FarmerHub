@@ -593,6 +593,12 @@ function setGridMode(mode) {
     }
 }
 
+function updateThresholdLive() {
+    const val = document.getElementById('risk-threshold').value;
+    document.getElementById('legend-val').textContent = val;
+    rebuildGrid();
+}
+
 function rebuildGrid() {
     const rows = parseInt(document.getElementById('grid-rows').value) || 5;
     const cols = parseInt(document.getElementById('grid-cols').value) || 5;
@@ -629,12 +635,6 @@ function rebuildGrid() {
             container.appendChild(cell);
         }
     }
-}
-
-function updateThresholdLive() {
-    const val = document.getElementById('risk-threshold').value;
-    document.getElementById('legend-val').textContent = val;
-    rebuildGrid();
 }
 
 function handleCellClick(r, c) {
