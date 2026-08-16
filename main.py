@@ -20,6 +20,8 @@ import requests
 import tensorflow as tf
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -483,3 +485,8 @@ def health():
         "disease_classes_loaded": len(CLASS_NAMES),
         "plots_registered": len(get_plots_data()),
     }
+# ---------------------------------------------------------------------
+# Frontend Static Serving
+# ---------------------------------------------------------------------
+# Serves the standalone HTML/JS/CSS frontend to bypass CORS and React
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
