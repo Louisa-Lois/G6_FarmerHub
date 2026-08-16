@@ -23,9 +23,16 @@ dry spell is forecasted.
 from core.grid_builder import build_risk_weights
 
 
-def compute_farm_health(yield_risk_map, disease_risk_map, weather_advice,
-                         yield_weight=0.5, disease_weight=0.5,
-                         risk_threshold=0.5, spray_boost=0.15, irrigation_boost=0.10):
+def compute_farm_health(
+    yield_risk_map,
+    disease_risk_map,
+    weather_advice,
+    yield_weight=0.5,
+    disease_weight=0.5,
+    risk_threshold=0.5,
+    spray_boost=0.15,
+    irrigation_boost=0.10,
+):
     """
     yield_risk_map: dict (row,col) -> yield risk 0-1
                      (from yield_connector.get_yield_risk_map)
@@ -41,7 +48,9 @@ def compute_farm_health(yield_risk_map, disease_risk_map, weather_advice,
         "weather_summary": {...}
       }
     """
-    base_risk = build_risk_weights(yield_risk_map, disease_risk_map, yield_weight, disease_weight)
+    base_risk = build_risk_weights(
+        yield_risk_map, disease_risk_map, yield_weight, disease_weight
+    )
 
     rain_soon = weather_advice.get("rain_expected_48h", False)
     irrigation_alert = weather_advice.get("irrigation_alert", False)
@@ -79,6 +88,9 @@ def compute_farm_health(yield_risk_map, disease_risk_map, weather_advice,
         "farm_health_score": farm_health_score,
         "plots": plots,
         "weather_summary": {
+            "temp": weather_advice.get("temp", 28.0),
+            "humidity": weather_advice.get("humidity", 70),
+            "wind_speed": weather_advice.get("wind_speed", 5.0),
             "rain_expected_48h": rain_soon,
             "irrigation_alert": irrigation_alert,
             "planting_recommended": weather_advice.get("planting_recommended", False),

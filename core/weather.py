@@ -197,6 +197,8 @@ def check_planting_window(
 
 
 def get_weather_advice(region, town=None, api_key=None):
+    """Bundles location resolution + all four signals into one response
+    dict, ready to be wrapped by the FastAPI endpoint in main.py."""
     api_key = api_key or API_KEY
     location_warning = None
 
@@ -211,6 +213,12 @@ def get_weather_advice(region, town=None, api_key=None):
             lat, lon = resolve_location(region, api_key)
 
         forecast_data = get_forecast(lat, lon, api_key)
+
+        # Extract current conditions from the first 3-hour forecast block
+        current = forecast_data.get("list", [{}])[0]
+        temp = current.get("main", {}).get("temp", 28.0)
+        humidity = current.get("main", {}).get("humidity", 70)
+        wind_speed = current.get("wind", {}).get("speed", 5.0)
 
         rain_soon, _, rain_amount = check_rain_expected(forecast_data)
         dry_count, _ = check_dry_spell(forecast_data)
@@ -228,26 +236,15 @@ def get_weather_advice(region, town=None, api_key=None):
         irrigation_msg = "Irrigate now — Dry spell detected (Fallback data)."
         can_plant = False
         planting_msg = "Too dry for planting right now (Fallback data)."
+        temp = 28.0
+        humidity = 70
+        wind_speed = 5.0
 
     return {
         "location_name": location_name,
-        "rain_expected_48h": rain_soon,
-        "rain_amount_mm": round(rain_amount, 2),
-        "dry_days_forecasted": dry_count,
-        "irrigation_alert": should_irrigate,
-        "irrigation_message": irrigation_msg,
-        "planting_recommended": can_plant,
-        "planting_message": planting_msg,
-        "location_warning": location_warning,
-    }
-
-    rain_soon, _, rain_amount = check_rain_expected(forecast_data)
-    dry_count, _ = check_dry_spell(forecast_data)
-    should_irrigate, irrigation_msg = get_irrigation_alert(forecast_data)
-    can_plant, planting_msg = check_planting_window(forecast_data)
-
-    return {
-        "location_name": forecast_data.get("city", {}).get("name", town or region),
+        "temp": round(temp, 1),
+        "humidity": humidity,
+        "wind_speed": round(wind_speed, 1),
         "rain_expected_48h": rain_soon,
         "rain_amount_mm": round(rain_amount, 2),
         "dry_days_forecasted": dry_count,

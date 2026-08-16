@@ -31,8 +31,12 @@ from core.route_planner import yield_to_risk, plan_route, estimate_travel_time
 from core.grid_builder import build_grid
 from core.weather import get_weather_advice
 from core.plot_registry import (
-    register_plot, attach_photo, get_plots_data, get_plot_photos,
-    get_available_districts, get_available_crops,
+    register_plot,
+    attach_photo,
+    get_plots_data,
+    get_plot_photos,
+    get_available_districts,
+    get_available_crops,
 )
 from core.yield_connector import get_yield_risk_map
 from core.disease_connector import get_disease_risk_map
@@ -61,12 +65,16 @@ DISEASE_MODEL = tf.keras.models.load_model("models/farmerhub_disease_model.keras
 with open("models/class_names.json") as f:
     CLASS_NAMES = json.load(f)
 
-DISEASE_IMG_SIZE = (256, 256)  # must match what the model was trained on -- Kwasi's real model, verified via model.input_shape
+DISEASE_IMG_SIZE = (
+    256,
+    256,
+)  # must match what the model was trained on -- Kwasi's real model, verified via model.input_shape
 
 
 # ---------------------------------------------------------------------
 # /predict-yield
 # ---------------------------------------------------------------------
+
 
 class YieldRequest(BaseModel):
     region: str = Field(..., examples=["ASHANTI"])
@@ -98,21 +106,32 @@ class YieldResponse(BaseModel):
 def predict_yield_endpoint(req: YieldRequest):
     try:
         predicted = predict_yield(
-            YIELD_MODEL, NATIONAL_AVG,
-            region=req.region, crop=req.crop, year=req.year,
-            rainfall_mm=req.rainfall_mm, soil_ph=req.soil_ph,
-            organic_matter=req.organic_matter, nitrogen=req.nitrogen,
-            phosphorus=req.phosphorus, cec=req.cec,
+            YIELD_MODEL,
+            NATIONAL_AVG,
+            region=req.region,
+            crop=req.crop,
+            year=req.year,
+            rainfall_mm=req.rainfall_mm,
+            soil_ph=req.soil_ph,
+            organic_matter=req.organic_matter,
+            nitrogen=req.nitrogen,
+            phosphorus=req.phosphorus,
+            cec=req.cec,
             region_median_rainfall=req.region_median_rainfall,
             potential_yield=req.potential_yield,
         )
     except KeyError:
-        raise HTTPException(status_code=400, detail=f"Unknown crop '{req.crop}' -- not in the trained model's national average table")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown crop '{req.crop}' -- not in the trained model's national average table",
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Yield prediction failed: {e}")
 
     risk = yield_to_risk(predicted, max_expected_yield=req.potential_yield)
-    return YieldResponse(predicted_yield_mt_ha=round(predicted, 3), risk_score=round(risk, 3))
+    return YieldResponse(
+        predicted_yield_mt_ha=round(predicted, 3), risk_score=round(risk, 3)
+    )
 
 
 # ---------------------------------------------------------------------
@@ -124,6 +143,7 @@ def predict_yield_endpoint(req: YieldRequest):
 # reference values internally and returns a regional (not farm-specific)
 # estimate. See core/yield_service.py for details and caveats.
 
+
 class YieldEstimateRequest(BaseModel):
     region: str = Field(..., examples=["ASHANTI"])
     crop: str = Field(..., examples=["MAIZE"])
@@ -131,7 +151,7 @@ class YieldEstimateRequest(BaseModel):
     rainfall_mm: float | None = Field(
         default=None,
         description="Optional forecasted rainfall. Defaults to the region's "
-                    "latest observed rainfall if omitted.",
+        "latest observed rainfall if omitted.",
     )
 
 
@@ -173,6 +193,7 @@ def predict_yield_estimate_endpoint(req: YieldEstimateRequest):
 # /detect-disease
 # ---------------------------------------------------------------------
 
+
 class DiseaseResponse(BaseModel):
     predicted_class: str
     confidence: float
@@ -188,9 +209,13 @@ async def detect_disease_endpoint(file: UploadFile = File(...)):
     # re-opening that same path (as tf.keras.utils.load_img would) fails
     # there with a PermissionError, even though it works fine on Linux/Mac.
     try:
-        img = tf.keras.utils.load_img(io.BytesIO(contents), target_size=DISEASE_IMG_SIZE)
+        img = tf.keras.utils.load_img(
+            io.BytesIO(contents), target_size=DISEASE_IMG_SIZE
+        )
     except Exception:
-        raise HTTPException(status_code=400, detail="Could not read the uploaded file as an image")
+        raise HTTPException(
+            status_code=400, detail="Could not read the uploaded file as an image"
+        )
 
     arr = tf.keras.utils.img_to_array(img) / 255.0
     arr = np.expand_dims(arr, axis=0)
@@ -212,13 +237,17 @@ async def detect_disease_endpoint(file: UploadFile = File(...)):
 # /plan-route
 # ---------------------------------------------------------------------
 
+
 class RouteRequest(BaseModel):
     rows: int
     cols: int
-    obstacles: list[list[int]] = Field(default_factory=list, description="[[row, col], ...]")
+    obstacles: list[list[int]] = Field(
+        default_factory=list, description="[[row, col], ...]"
+    )
     start: list[int] = Field(..., description="[row, col]")
     risk_weights: dict[str, float] = Field(
-        ..., description='Keys as "row,col" strings, e.g. {"3,4": 0.82}')
+        ..., description='Keys as "row,col" strings, e.g. {"3,4": 0.82}'
+    )
     threshold: float = 0.6
     plot_size_meters: float = 8.0
     walking_speed_m_per_min: float = 60.0
@@ -240,7 +269,9 @@ class RouteResponse(BaseModel):
 @app.post("/plan-route", response_model=RouteResponse)
 def plan_route_endpoint(req: RouteRequest):
     if len(req.start) != 2:
-        raise HTTPException(status_code=400, detail=f"'start' must be [row, col], got {req.start}")
+        raise HTTPException(
+            status_code=400, detail=f"'start' must be [row, col], got {req.start}"
+        )
 
     start = tuple(req.start)
     if not (0 <= start[0] < req.rows and 0 <= start[1] < req.cols):
@@ -252,7 +283,9 @@ def plan_route_endpoint(req: RouteRequest):
     obstacles = [tuple(o) for o in req.obstacles]
     grid = build_grid(req.rows, req.cols, obstacles=obstacles)
     if not grid.get(start, False):
-        raise HTTPException(status_code=400, detail=f"'start' {list(start)} is on an obstacle")
+        raise HTTPException(
+            status_code=400, detail=f"'start' {list(start)} is on an obstacle"
+        )
 
     risk_weights = {}
     for key, val in req.risk_weights.items():
@@ -271,11 +304,14 @@ def plan_route_endpoint(req: RouteRequest):
             )
         risk_weights[(r, c)] = val
 
-    priority_plots = [p for p, r in risk_weights.items()
-                       if r >= req.threshold and grid.get(p, False)]
+    priority_plots = [
+        p for p, r in risk_weights.items() if r >= req.threshold and grid.get(p, False)
+    ]
 
     result = plan_route(grid, start, priority_plots, risk_weights)
-    minutes = estimate_travel_time(result["route"], req.plot_size_meters, req.walking_speed_m_per_min)
+    minutes = estimate_travel_time(
+        result["route"], req.plot_size_meters, req.walking_speed_m_per_min
+    )
 
     return RouteResponse(
         stops=[list(p) for p in result["stops"]],
@@ -287,6 +323,7 @@ def plan_route_endpoint(req: RouteRequest):
 # ---------------------------------------------------------------------
 # /weather-advice
 # ---------------------------------------------------------------------
+
 
 class WeatherRequest(BaseModel):
     region: str = Field(..., examples=["ASHANTI"])
@@ -303,6 +340,9 @@ class WeatherResponse(BaseModel):
     planting_recommended: bool
     planting_message: str | None
     location_warning: str | None
+    temp: float
+    humidity: int
+    wind_speed: float
 
 
 @app.post("/weather-advice", response_model=WeatherResponse)
@@ -324,6 +364,7 @@ def weather_advice_endpoint(req: WeatherRequest):
 # needs from district-level reference tables, so a farmer never has to
 # supply soil pH or CEC by hand. See core/plot_registry.py.
 
+
 class PlotRegistrationRequest(BaseModel):
     row: int
     col: int
@@ -333,7 +374,7 @@ class PlotRegistrationRequest(BaseModel):
     overrides: dict[str, float] | None = Field(
         default=None,
         description="Optional real soil-test values to override district "
-                    "defaults, e.g. {'soil_ph': 6.2}",
+        "defaults, e.g. {'soil_ph': 6.2}",
     )
 
 
@@ -347,8 +388,11 @@ class PlotRegistrationResponse(BaseModel):
 def register_plot_endpoint(req: PlotRegistrationRequest):
     try:
         plot_data = register_plot(
-            row=req.row, col=req.col,
-            region=req.region, district=req.district, crop=req.crop,
+            row=req.row,
+            col=req.col,
+            region=req.region,
+            district=req.district,
+            crop=req.crop,
             overrides=req.overrides,
         )
     except ValueError as e:
@@ -360,7 +404,9 @@ def register_plot_endpoint(req: PlotRegistrationRequest):
 def list_districts(region: str):
     districts = get_available_districts(region)
     if not districts:
-        raise HTTPException(status_code=404, detail=f"No districts found for region '{region}'")
+        raise HTTPException(
+            status_code=404, detail=f"No districts found for region '{region}'"
+        )
     return {"region": region.upper(), "districts": districts}
 
 
@@ -368,7 +414,9 @@ def list_districts(region: str):
 def list_crops(region: str, district: str):
     crops = get_available_crops(region, district)
     if not crops:
-        raise HTTPException(status_code=404, detail=f"No crops found for '{district}', '{region}'")
+        raise HTTPException(
+            status_code=404, detail=f"No crops found for '{district}', '{region}'"
+        )
     return {"region": region.upper(), "district": district.upper(), "crops": crops}
 
 
@@ -396,6 +444,7 @@ async def upload_plot_photo_endpoint(row: int, col: int, file: UploadFile = File
 # Score plus a per-plot urgency + recommendation. See
 # core/farm_health_dashboard.py.
 
+
 class PlotHealth(BaseModel):
     urgency: float
     yield_risk: float
@@ -408,6 +457,9 @@ class WeatherSummary(BaseModel):
     irrigation_alert: bool
     planting_recommended: bool
     planting_message: str | None
+    temp: float
+    humidity: int
+    wind_speed: float
 
 
 class FarmHealthResponse(BaseModel):
@@ -429,8 +481,11 @@ def farm_health_endpoint(region: str | None = None, town: str | None = None):
 
     plot_photos = get_plot_photos()
     disease_risk_map = (
-        get_disease_risk_map(plot_photos, DISEASE_MODEL, CLASS_NAMES, img_size=DISEASE_IMG_SIZE)
-        if plot_photos else {}
+        get_disease_risk_map(
+            plot_photos, DISEASE_MODEL, CLASS_NAMES, img_size=DISEASE_IMG_SIZE
+        )
+        if plot_photos
+        else {}
     )
 
     # Weather is farm-wide (OpenWeatherMap has no plot-level resolution),
@@ -455,6 +510,7 @@ def farm_health_endpoint(region: str | None = None, town: str | None = None):
 # Health check
 # ---------------------------------------------------------------------
 
+
 @app.get("/yield-options")
 def yield_options():
     """Dropdown contents for a region/crop yield-estimate form."""
@@ -468,6 +524,8 @@ def health():
         "disease_classes_loaded": len(CLASS_NAMES),
         "plots_registered": len(get_plots_data()),
     }
+
+
 # ---------------------------------------------------------------------
 # Frontend Static Serving
 # ---------------------------------------------------------------------

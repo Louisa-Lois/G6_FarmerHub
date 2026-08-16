@@ -46,18 +46,20 @@
 
             <!-- Weather Widget (Will hook to /weather-advice) -->
             <div class="hidden md:flex items-center bg-brand-bg px-4 py-1.5 rounded-full border border-gray-200 text-sm font-medium gap-4">
-                <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1">
                     <i class="fa-solid fa-location-dot text-gray-500"></i>
-                    <select class="bg-transparent border-none outline-none cursor-pointer">
-                        <option>Kumasi, Ashanti</option>
-                        <option>Accra, Greater Accra</option>
+                    <select id="top-region-select" onchange="updateTopWeather()" class="bg-transparent border-none outline-none cursor-pointer">
+                        <option value="ASHANTI">Ashanti</option>
+                        <option value="GREATER ACCRA">Greater Accra</option>
+                        <option value="NORTHERN">Northern</option>
+                        <option value="WESTERN">Western</option>
                     </select>
                 </div>
                 <div class="w-px h-4 bg-gray-300"></div>
-                <div class="flex items-center gap-2 text-brand-dark" id="top-weather-summary">
+                <div class="flex items-center gap-2 text-brand-dark">
                     <i class="fa-solid fa-cloud-sun text-yellow-500"></i>
-                    <span>26°C | 5mm Rain</span>
-                </div>
+                    <span id="top-weather-text">--°C | --mm Rain</span>
+                </div>   
             </div>
         </div>
 
@@ -106,9 +108,9 @@
                         <p class="text-sm text-gray-500" id="weather-message">Heavy rainfall (15mm) expected in the next 48 hours. Delay chemical spraying.</p>
                     </div>
                     <div class="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-droplet text-blue-500 block mb-1"></i> 74%</div>
-                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-wind text-gray-500 block mb-1"></i> 5m/s</div>
-                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-sun text-yellow-500 block mb-1"></i> 26°C</div>
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-droplet text-blue-500 block mb-1"></i> <span id="card-humidity">--%</span></div>
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-wind text-gray-500 block mb-1"></i> <span id="card-wind">--m/s</span></div>
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-sun text-yellow-500 block mb-1"></i> <span id="card-temp">--°C</span></div>
                     </div>
                 </div>
 
@@ -297,8 +299,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Risk Threshold</label>
-                    <input type="number" id="risk-threshold" value="0.6" step="0.1" min="0" max="1" class="w-full border rounded p-1.5 text-center font-semibold text-sm">
+                    <label class="blo <input type="number" id="risk-threshold" value="0.6" step="0.1" min="0" max="1" oninput="updateThresholdLive()" class="w-full border rounded p-1.5 text-center font-semibold text-sm"></label>
+                   
                 </div>
             </div>
 
@@ -335,7 +337,7 @@
         <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center">
             <div class="w-full flex justify-between items-center mb-4 text-xs text-gray-500">
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> Start</span>
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop (≥ 0.6) </span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop (&ge; <span id="legend-val">0.6</span>)</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-400 inline-block"></span> Obstacle</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-accent inline-block"></span> A*</span>
             </div>
@@ -575,11 +577,7 @@
 let gridMode = 'start'; // 'start' or 'obstacle'
 let startNode = [0, 0];
 let obstacles = [];
-let plotRisks = {
-    "1,2": 0.85, // Default demo priority plots if backend is empty
-    "3,1": 0.72,
-    "4,3": 0.65
-};
+let plotRisks = {};
 
 function setGridMode(mode) {
     gridMode = mode;
@@ -598,6 +596,7 @@ function setGridMode(mode) {
 function rebuildGrid() {
     const rows = parseInt(document.getElementById('grid-rows').value) || 5;
     const cols = parseInt(document.getElementById('grid-cols').value) || 5;
+    const threshold = parseFloat(document.getElementById('risk-threshold').value) || 0.6;
     const container = document.getElementById('farm-grid-visualizer');
     
     container.style.gridTemplateColumns = `repeat(${cols}, minmax(55px, 75px))`;
@@ -620,7 +619,7 @@ function rebuildGrid() {
             } else if (isObstacle) {
                 cell.classList.add('bg-gray-400', 'border-gray-500', 'text-white');
                 cell.innerHTML = '<i class="fa-solid fa-ban"></i>';
-            } else if (risk >= 0.6) {
+            } else if (risk >= threshold) {
                 cell.classList.add('bg-red-50', 'border-red-400', 'text-red-600');
                 cell.innerHTML = `<span class="text-[10px]">(${r},${c})</span><span class="text-[9px] bg-red-200 px-1 rounded mt-0.5">${Math.round(risk*100)}%</span>`;
             } else {
@@ -630,6 +629,12 @@ function rebuildGrid() {
             container.appendChild(cell);
         }
     }
+}
+
+function updateThresholdLive() {
+    const val = document.getElementById('risk-threshold').value;
+    document.getElementById('legend-val').textContent = val;
+    rebuildGrid();
 }
 
 function handleCellClick(r, c) {
@@ -757,6 +762,10 @@ async function loadDashboardData() {
 
         // 2. Update Weather Summary
         const weather = data.weather_summary;
+        
+        document.getElementById('card-humidity').textContent = `${weather.humidity}%`;
+        document.getElementById('card-wind').textContent = `${weather.wind_speed}m/s`;
+        document.getElementById('card-temp').textContent = `${weather.temp}°C`;
         if (weather.rain_expected_48h) {
             weatherBadge.textContent = "Rain Expected";
             weatherBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
@@ -869,8 +878,28 @@ async function loadDashboardData() {
 // Update the existing DOMContentLoaded listener
 window.addEventListener('DOMContentLoaded', () => {
     rebuildGrid();
-    loadDashboardData(); // Load data on initial page load
+    loadDashboardData(); 
+    updateTopWeather(); // Load top nav weather
 });
+
+async function updateTopWeather() {
+    const region = document.getElementById('top-region-select').value;
+    const textEl = document.getElementById('top-weather-text');
+    textEl.textContent = "Loading...";
+    
+    try {
+        const res = await fetch(`${API_BASE}/weather-advice`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ region: region })
+        });
+        if (!res.ok) throw new Error("Failed to fetch weather");
+        const data = await res.json();
+        textEl.textContent = `${data.temp}°C | ${data.rain_amount_mm}mm Rain`;
+    } catch (err) {
+        textEl.textContent = "Offline (Fallback)";
+    }
+}
 
 // Update the existing switchTab function (which is inside the first <script> tag near the HTML tabs) 
 // to refresh the dashboard data whenever the user clicks back to it.
