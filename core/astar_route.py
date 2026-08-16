@@ -29,7 +29,7 @@ def astar(grid, start, goal, risk_weights):
         # Straight-line distance to goal -- never overestimates true
         # travel distance, so it stays admissible.
         (r1, c1), (r2, c2) = node, goal
-        return math.hypot(r2 - r1, c2 - c1)
+        return 0.01 * math.hypot(r2 - r1, c2 - c1)
 
     def neighbors(node):
         r, c = node

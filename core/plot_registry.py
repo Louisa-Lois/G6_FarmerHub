@@ -73,15 +73,16 @@ def get_district_defaults(region, district, crop):
     soil_key = (region, district)
     yield_key = (region, district, crop)
 
-    # Safe fallback: If the ML model doesn't know the soil for this district, default to Ashanti
     if soil_key not in _SOIL_DEFAULTS:
-        soil_key = ("ASHANTI", "AMANSIE WEST")
-
-    # Safe fallback: If the ML model doesn't know this crop in this district, default to Maize
+        raise ValueError(
+            f"No data for district '{district}' in region '{region}'. "
+            f"Available districts: {get_available_districts(region)}"
+        )
     if yield_key not in _POTENTIAL_YIELD:
-        yield_key = (soil_key[0], soil_key[1], crop)
-        if yield_key not in _POTENTIAL_YIELD:
-            yield_key = ("ASHANTI", "AMANSIE WEST", "MAIZE")
+        raise ValueError(
+            f"'{crop}' is not grown in {district}. "
+            f"Available crops here: {get_available_crops(region, district)}"
+        )
 
     soil = _SOIL_DEFAULTS[soil_key]
 
