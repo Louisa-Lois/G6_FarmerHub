@@ -71,8 +71,8 @@ NATIONAL_AVG = _yield_bundle["national_avg"]
 # potential-yield reference values itself, so a farmer only has to supply
 # region + crop instead of the 8 extra fields /predict-yield needs.
 YIELD_SERVICE = YieldService()
+DISEASE_MODEL = tf.keras.models.load_model("models/farmerhub_disease_model.keras")
 
-tf.keras.models.load_model("models/farmerhub_disease_model.keras")
 with open("models/class_names.json") as f:
     CLASS_NAMES = json.load(f)
 
