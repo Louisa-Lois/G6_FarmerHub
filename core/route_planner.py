@@ -6,8 +6,8 @@ module output: an ordered inspection/irrigation route + estimated
 travel time, built from teammates' model outputs.
 """
 
-from astar_route import astar
-from grid_builder import build_grid, build_risk_weights
+from core.astar_route import astar
+from core.grid_builder import build_grid, build_risk_weights
 
 
 # ---------------------------------------------------------------------

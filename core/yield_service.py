@@ -30,8 +30,8 @@ import joblib
 
 class YieldService:
 
-    MODEL_PATH = 'yield_model.joblib'
-    DATA_PATH = 'farmerhub_yield_training_data_clean.csv'
+    MODEL_PATH = 'models/yield_model.joblib'
+    DATA_PATH = 'data/farmerhub_yield_training_data_clean.csv'
     MAPE = 0.109      # model's mean absolute percentage error, from notebook §7
 
     def __init__(self, model_path=None, data_path=None):

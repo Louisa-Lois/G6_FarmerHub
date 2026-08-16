@@ -20,7 +20,7 @@ weather.py's 5-day forecast sums. Don't wire those two together.
 import pandas as pd
 
 CURRENT_YEAR = 2026
-CSV_PATH = "../data/farmerhub_yield_training_data_clean.csv"
+CSV_PATH = "data/farmerhub_yield_training_data_clean.csv"
 
 _df = pd.read_csv(CSV_PATH)
 
