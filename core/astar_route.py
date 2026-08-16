@@ -40,12 +40,11 @@ def astar(grid, start, goal, risk_weights):
                 yield nxt
 
     def move_cost(node):
-        # Base cost of 1 per step, reduced by risk urgency so A*
-        # is drawn toward high-risk plots. Clamp so cost never goes <= 0
-        # (that would break admissibility).
         base = 1.0
         risk = risk_weights.get(node, 0.0)
-        return max(0.1, base - risk)
+        # Apply a much steeper discount (0.01 instead of 0.1) to force A*
+        # to aggressively detour towards high-risk plots.
+        return max(0.01, base - (risk * 2))
 
     open_heap = [(heuristic(start), 0.0, start, None)]
     best_g = {start: 0.0}
@@ -70,11 +69,13 @@ def astar(grid, start, goal, risk_weights):
 
         for nxt in neighbors(current):
             tentative_g = g + move_cost(nxt)
-            if tentative_g < best_g.get(nxt, float('inf')):
+            if tentative_g < best_g.get(nxt, float("inf")):
                 best_g[nxt] = tentative_g
-                heapq.heappush(open_heap, (tentative_g + heuristic(nxt), tentative_g, nxt, current))
+                heapq.heappush(
+                    open_heap, (tentative_g + heuristic(nxt), tentative_g, nxt, current)
+                )
 
-    return None, float('inf')
+    return None, float("inf")
 
 
 if __name__ == "__main__":

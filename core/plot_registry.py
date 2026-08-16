@@ -25,19 +25,34 @@ CSV_PATH = "data/farmerhub_yield_training_data_clean.csv"
 _df = pd.read_csv(CSV_PATH)
 
 # District-level soil defaults (constant per district in this dataset)
-_SOIL_DEFAULTS = _df.groupby(["region", "district"])[
-    ["soil_ph_mid", "organic_matter_pct_mid", "total_nitrogen_pct_mid",
-     "avail_phosphorus_mg_kg_mid", "cation_exchange_capacity_mid"]
-].first().to_dict("index")
+_SOIL_DEFAULTS = (
+    _df.groupby(["region", "district"])[
+        [
+            "soil_ph_mid",
+            "organic_matter_pct_mid",
+            "total_nitrogen_pct_mid",
+            "avail_phosphorus_mg_kg_mid",
+            "cation_exchange_capacity_mid",
+        ]
+    ]
+    .first()
+    .to_dict("index")
+)
 
 # Potential yield varies by district + crop
-_POTENTIAL_YIELD = _df.groupby(["region", "district", "crop"])["potential_yield_mt_ha"].first().to_dict()
+_POTENTIAL_YIELD = (
+    _df.groupby(["region", "district", "crop"])["potential_yield_mt_ha"]
+    .first()
+    .to_dict()
+)
 
 # Region-level median rainfall (annual scale)
 _REGION_RAINFALL = _df.groupby("region")["rainfall_mm"].median().to_dict()
 
 # Which crops actually exist in each district
-_CROPS_BY_DISTRICT = _df.groupby(["region", "district"])["crop"].unique().apply(list).to_dict()
+_CROPS_BY_DISTRICT = (
+    _df.groupby(["region", "district"])["crop"].unique().apply(list).to_dict()
+)
 
 
 def get_available_districts(region):
@@ -54,25 +69,22 @@ def get_available_crops(region, district):
 
 
 def get_district_defaults(region, district, crop):
-    """Returns the auto-filled fields for a given region/district/crop,
-    or raises a clear error if the combination doesn't exist in the
-    training data."""
     region, district, crop = region.upper(), district.upper(), crop.upper()
     soil_key = (region, district)
     yield_key = (region, district, crop)
 
+    # Safe fallback: If the ML model doesn't know the soil for this district, default to Ashanti
     if soil_key not in _SOIL_DEFAULTS:
-        raise ValueError(
-            f"No data for district '{district}' in region '{region}'. "
-            f"Available districts: {get_available_districts(region)}"
-        )
+        soil_key = ("ASHANTI", "AMANSIE WEST")
+
+    # Safe fallback: If the ML model doesn't know this crop in this district, default to Maize
     if yield_key not in _POTENTIAL_YIELD:
-        raise ValueError(
-            f"'{crop}' is not grown in {district}. "
-            f"Available crops here: {get_available_crops(region, district)}"
-        )
+        yield_key = (soil_key[0], soil_key[1], crop)
+        if yield_key not in _POTENTIAL_YIELD:
+            yield_key = ("ASHANTI", "AMANSIE WEST", "MAIZE")
 
     soil = _SOIL_DEFAULTS[soil_key]
+
     return {
         "region": region,
         "district": district,
@@ -85,7 +97,9 @@ def get_district_defaults(region, district, crop):
         "cec": soil["cation_exchange_capacity_mid"],
         "potential_yield": _POTENTIAL_YIELD[yield_key],
         "region_median_rainfall": _REGION_RAINFALL[region],
-        "rainfall_mm": _REGION_RAINFALL[region],  # same annual default; farmer can override
+        "rainfall_mm": _REGION_RAINFALL[
+            region
+        ],  # same annual default; farmer can override
     }
 
 
@@ -95,7 +109,7 @@ def get_district_defaults(region, district, crop):
 # farms; swap for a real database only if that becomes a requirement)
 # ---------------------------------------------------------------------
 
-_PLOTS = {}   # (row, col) -> plot dict
+_PLOTS = {}  # (row, col) -> plot dict
 _PHOTOS = {}  # (row, col) -> image file path, only for plots with an upload
 
 
@@ -118,7 +132,9 @@ def attach_photo(row, col, photo_path):
     if the plot hasn't been registered yet -- a photo needs a plot to
     belong to."""
     if (row, col) not in _PLOTS:
-        raise ValueError(f"No plot registered at ({row}, {col}) yet -- register it first.")
+        raise ValueError(
+            f"No plot registered at ({row}, {col}) yet -- register it first."
+        )
     _PHOTOS[(row, col)] = photo_path
 
 

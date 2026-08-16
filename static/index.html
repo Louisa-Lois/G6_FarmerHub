@@ -203,10 +203,25 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
                     <select id="plot-region" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent bg-white">
                         <option value="">Select Region...</option>
+                        <option value="">Select Region...</option>
+                        <option value="AHAFO">Ahafo</option>
                         <option value="ASHANTI">Ashanti</option>
-                        <option value="NORTHERN">Northern</option>
+                        <option value="BONO">Bono</option>
+                        <option value="BONO EAST">Bono East</option>
+                        <option value="CENTRAL">Central</option>
                         <option value="EASTERN">Eastern</option>
-                        <option value="BRONG AHAFO">Brong Ahafo</option>
+                        <option value="GREATER ACCRA">Greater Accra</option>
+                        <option value="NORTH EAST">North East</option>
+                        <option value="NORTHERN">Northern</option>
+                        <option value="OTI">Oti</option>
+                        <option value="SAVANNAH">Savannah</option>
+                        <option value="UPPER EAST">Upper East</option>
+                        <option value="UPPER WEST">Upper West</option>
+                        <option value="VOLTA">Volta</option>
+                        <option value="WESTERN">Western</option>
+                        <option value="WESTERN NORTH">Western North</option>
+                    </select>   
+</select>
                     </select>
                 </div>
                 <div>
@@ -320,7 +335,7 @@
         <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center">
             <div class="w-full flex justify-between items-center mb-4 text-xs text-gray-500">
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> Start</span>
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop ($\ge$ 0.6)</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop (≥ 0.6) </span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-400 inline-block"></span> Obstacle</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-accent inline-block"></span> A*</span>
             </div>
@@ -731,7 +746,7 @@ async function loadDashboardData() {
         const data = await response.json();
 
         // 1. Update Farm Health Score
-        healthScoreEl.textContent = `${Math.round(data.farm_health_score * 100)}%`;
+        healthScoreEl.textContent = `${Math.round(data.farm_health_score)}%`;
         if (data.farm_health_score < 0.5) {
             healthScoreEl.className = "text-6xl font-bold text-red-500 relative z-10";
         } else if (data.farm_health_score < 0.8) {
