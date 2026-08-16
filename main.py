@@ -20,9 +20,7 @@ import requests
 import tensorflow as tf
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 load_dotenv()
@@ -45,21 +43,6 @@ os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="FarmerHub AI Backend", version="0.1.0")
 
-# Allows a React dev server (localhost:3000 is Create React App's default,
-# 5173 is Vite's) to call this API from the browser. Add the real deployed
-# frontend URL here too once Louisa-Lois has one.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ---------------------------------------------------------------------
 # Load all models ONCE at startup (not per-request -- that would be slow)
