@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmersHub AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Tailwind Config for FarmersHub Branding -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-bg': '#F4F6F0',
+                        'brand-dark': '#14301C',
+                        'brand-accent': '#4ADE80',
+                        'brand-light': '#A3E635',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Smooth tab transitions */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-brand-bg text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            
+            <!-- Logo & Brand (Replace with your app icon asset later) -->
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-brand-dark rounded-md flex items-center justify-center text-white font-bold">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h1 class="text-xl font-bold text-brand-dark tracking-tight">FarmersHub</h1>
+            </div>
+
+            <!-- Weather & Farm Selector Widget -->
+            <div class="hidden md:flex items-center bg-brand-bg px-4 py-1.5 rounded-full border border-gray-200 text-sm font-medium gap-3">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-house-chimney text-brand-dark"></i>
+                    <select id="top-farm-select" onchange="onFarmSelectChange()" class="bg-white border border-gray-300 rounded px-2 py-0.5 text-xs font-bold text-brand-dark outline-none cursor-pointer max-w-[150px]">
+                        <option value="default_farm">default_farm</option>
+                        <option value="__new__">+ New Farm...</option>
+                    </select>
+                </div>
+                <div class="w-px h-4 bg-gray-300"></div>
+                <div class="flex items-center gap-1">
+                    <i class="fa-solid fa-location-dot text-gray-500"></i>
+                    <select id="top-region-select" onchange="updateTopWeather()" class="bg-transparent border-none outline-none cursor-pointer">
+                        <option value="ASHANTI">Ashanti</option>
+                        <option value="GREATER ACCRA">Greater Accra</option>
+                        <option value="NORTHERN">Northern</option>
+                        <option value="WESTERN">Western</option>
+                    </select>
+                </div>
+                <div class="w-px h-4 bg-gray-300"></div>
+                <div class="flex items-center gap-2 text-brand-dark">
+                    <i class="fa-solid fa-cloud-sun text-yellow-500"></i>
+                    <span id="top-weather-text">--°C | --mm Rain</span>
+                </div>   
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-gray-100 flex overflow-x-auto">
+            <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="px-4 py-3 text-sm font-medium border-b-2 border-brand-dark text-brand-dark whitespace-nowrap">
+                <i class="fa-solid fa-chart-pie mr-1"></i> Dashboard
+            </button>
+            <button onclick="switchTab('my-farm')" id="tab-btn-my-farm" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                <i class="fa-solid fa-seedling mr-1"></i> My Farm
+            </button>
+            <button onclick="switchTab('route-planner')" id="tab-btn-route-planner" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                <i class="fa-solid fa-route mr-1"></i> Route Planner
+            </button>
+            <button onclick="switchTab('disease-scan')" id="tab-btn-disease-scan" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                <i class="fa-solid fa-camera mr-1"></i> Quick Scan
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- TAB 1: DASHBOARD -->
+        <section id="dashboard" class="tab-content active space-y-6">
+            
+            <!-- Hero Metrics Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Farm Health Gauge -->
+                <div class="bg-brand-dark text-white rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="fa-solid fa-seedling text-8xl"></i>
+                    </div>
+                    <h2 class="text-sm font-medium text-gray-300 uppercase tracking-wider mb-2 relative z-10">Overall Farm Health</h2>
+                    <div class="text-6xl font-bold text-brand-accent relative z-10" id="farm-health-score">88%</div>
+                    <p class="text-sm mt-2 text-gray-300 relative z-10">Optimal Range</p>
+                </div>
+
+                <!-- Weather Action Card -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-bold text-gray-800">Weather Forecast</h3>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full" id="weather-badge">Rain Expected</span>
+                        </div>
+                        <p class="text-sm text-gray-500" id="weather-message">Heavy rainfall (15mm) expected in the next 48 hours. Delay chemical spraying.</p>
+                    </div>
+                    <div class="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-droplet text-blue-500 block mb-1"></i> <span id="card-humidity">--%</span></div>
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-wind text-gray-500 block mb-1"></i> <span id="card-wind">--m/s</span></div>
+                        <div class="bg-brand-bg rounded p-2"><i class="fa-solid fa-sun text-yellow-500 block mb-1"></i> <span id="card-temp">--°C</span></div>
+                    </div>
+                </div>
+
+                <!-- Alerts / Action Required -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-red-100">
+                    <h3 class="font-bold text-red-600 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation"></i> Action Required
+                    </h3>
+                    <ul class="space-y-3 text-sm" id="action-alerts">
+                        <!-- Dummy Data to visualize the list -->
+                        <li class="flex items-start gap-2 bg-red-50 p-2 rounded text-red-800">
+                            <span class="font-bold block mt-0.5">Plot (2,1):</span> 
+                            <span>High disease risk detected. Immediate attention needed.</span>
+                        </li>
+                        <li class="flex items-start gap-2 bg-yellow-50 p-2 rounded text-yellow-800">
+                            <span class="font-bold block mt-0.5">Plot (0,3):</span> 
+                            <span>Irrigation required. Soil moisture critically low.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Plots Grid -->
+            <div>
+                <div class="flex justify-between items-end mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">Registered Plots</h2>
+                    <button onclick="switchTab('my-farm')" class="text-sm text-brand-dark font-semibold hover:underline">Manage &rarr;</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="dashboard-plots-container">
+                    <!-- Example Plot Card -->
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="bg-brand-light bg-opacity-20 text-brand-dark text-xs font-bold px-2 py-1 rounded">MAIZE</span>
+                                <h4 class="font-bold mt-1">Plot (0,0)</h4>
+                            </div>
+                            <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">Healthy</span>
+                        </div>
+                        <div class="space-y-2 text-sm text-gray-600 mb-3">
+                            <div class="flex justify-between"><span>Yield Risk:</span> <span class="font-medium">12%</span></div>
+                            <div class="flex justify-between"><span>Disease Risk:</span> <span class="font-medium">0%</span></div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                            <div class="bg-green-500 h-1.5 rounded-full" style="width: 88%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Example Plot Card 2 (At Risk) -->
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 hover:shadow-md transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded">CASSAVA</span>
+                                <h4 class="font-bold mt-1">Plot (2,1)</h4>
+                            </div>
+                            <span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">At Risk</span>
+                        </div>
+                        <div class="space-y-2 text-sm text-gray-600 mb-3">
+                            <div class="flex justify-between"><span>Yield Risk:</span> <span class="font-medium">45%</span></div>
+                            <div class="flex justify-between text-red-600"><span>Disease Risk:</span> <span class="font-bold">82%</span></div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                            <div class="bg-red-500 h-1.5 rounded-full" style="width: 18%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MY FARM -->
+<section id="my-farm" class="tab-content space-y-6">
+    <!-- 1. TOP: All Registered Farms & Plots Overview -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-4xl mx-auto space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-brand-dark"></i> All Registered Farms & Plots
+                </h2>
+                <p class="text-xs text-gray-500">Overview and management of all active plots across your registered farms.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-500 font-semibold">Filter Farm:</label>
+                <select id="managed-farm-filter" onchange="loadManagedPlots()" class="bg-brand-bg border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-brand-dark outline-none cursor-pointer">
+                    <option value="all">🌐 All Farms</option>
+                </select>
+                <button type="button" onclick="loadManagedPlots()" title="Refresh" class="bg-brand-bg hover:bg-gray-200 text-brand-dark px-2 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cards container for all plots -->
+        <div id="managed-plots-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-1">
+            <p class="text-xs text-gray-400 italic col-span-full py-4 text-center">Loading plots...</p>
+        </div>
+    </div>
+
+    <!-- 2. BOTTOM: Register a New Plot Form -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-circle-plus text-brand-dark"></i> Register a New Plot
+        </h2>
+        <p class="text-gray-500 text-xs mb-5">Define your plot location and assign a crop to begin monitoring yield and disease risk.</p>
+        
+        <form id="plot-registration-form" class="space-y-5">
+            <!-- Farm ID & Grid Coordinates -->
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Farm ID</label>
+                    <input type="text" id="plot-farm-id" value="default_farm" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent font-semibold text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Row Position</label>
+                    <input type="number" id="plot-row" min="0" max="10" placeholder="e.g. 0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Column Position</label>
+                    <input type="number" id="plot-col" min="0" max="10" placeholder="e.g. 0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent">
+                </div>
+            </div>
+
+            <!-- Region & District -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                    <select id="plot-region" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent bg-white">
+                        <option value="">Select Region...</option>
+                        <option value="AHAFO">Ahafo</option>
+                        <option value="ASHANTI">Ashanti</option>
+                        <option value="BONO">Bono</option>
+                        <option value="BONO EAST">Bono East</option>
+                        <option value="CENTRAL">Central</option>
+                        <option value="EASTERN">Eastern</option>
+                        <option value="GREATER ACCRA">Greater Accra</option>
+                        <option value="NORTH EAST">North East</option>
+                        <option value="NORTHERN">Northern</option>
+                        <option value="OTI">Oti</option>
+                        <option value="SAVANNAH">Savannah</option>
+                        <option value="UPPER EAST">Upper East</option>
+                        <option value="UPPER WEST">Upper West</option>
+                        <option value="VOLTA">Volta</option>
+                        <option value="WESTERN">Western</option>
+                        <option value="WESTERN NORTH">Western North</option>
+                    </select>   
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">District</label>
+                    <select id="plot-district" required disabled class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent bg-gray-50 disabled:opacity-50 transition">
+                        <option value="">Select Region first...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Crop Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Crop Type</label>
+                <select id="plot-crop" required disabled class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent bg-gray-50 disabled:opacity-50 transition">
+                    <option value="">Select District first...</option>
+                </select>
+            </div>
+
+            <!-- Photo Upload (Optional) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Leaf Photo (Optional)</label>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-gray-500 hover:bg-brand-bg hover:border-brand-accent transition cursor-pointer relative">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i>
+                    <span class="text-sm">Click to upload or drag and drop</span>
+                    <span class="text-xs mt-1">JPEG, PNG (Used for Disease Risk)</span>
+                    <input type="file" id="plot-photo" accept="image/jpeg, image/png, image/jpg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                </div>
+                <p id="file-name-display" class="text-xs text-brand-dark font-semibold mt-2 hidden"></p>
+            </div>
+
+            <!-- Submit Button & Feedback -->
+            <button type="submit" id="submit-plot-btn" class="w-full bg-brand-dark text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition flex justify-center items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Register Plot
+            </button>
+            <div id="form-feedback" class="hidden text-sm text-center font-semibold p-3 rounded mt-3"></div>
+        </form>
+    </div>
+</section>
+
+        <!-- TAB 3: ROUTE PLANNER (A* Visual Grid) -->
+<section id="route-planner" class="tab-content space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Controls Sidebar -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-route text-brand-dark"></i> Route Config
+            </h2>
+            <p class="text-xs text-gray-500">Configure your farm layout, set your starting position, and run A* path optimization to visit high-risk plots.</p>
+
+            <!-- Mode Selector -->
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Click Mode</label>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button type="button" onclick="setGridMode('start')" id="mode-btn-start" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1 transition">
+                        <i class="fa-solid fa-location-dot"></i> Start
+                    </button>
+                    <button type="button" onclick="setGridMode('target')" id="mode-btn-target" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition">
+                        <i class="fa-solid fa-bullseye"></i> Target
+                    </button>
+                    <button type="button" onclick="setGridMode('obstacle')" id="mode-btn-obstacle" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition">
+                        <i class="fa-solid fa-ban"></i> Obstacle
+                    </button>
+                </div>
+            </div>
+
+            <!-- Single Target Toggle -->
+            <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200 flex items-center justify-between">
+                <label for="use-single-target" class="text-xs font-bold text-gray-700 cursor-pointer flex items-center gap-2">
+                    <i class="fa-solid fa-crosshairs text-purple-600"></i> Direct Path to Target Plot
+                </label>
+                <input type="checkbox" id="use-single-target" onchange="rebuildGrid()" class="w-4 h-4 text-brand-dark rounded cursor-pointer">
+            </div>
+
+           <!-- Parameters -->
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Grid Dimensions</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="grid-rows" value="5" min="2" max="10" class="w-full border rounded p-1.5 text-center font-semibold text-sm">
+                        <span class="text-gray-400">×</span>
+                        <input type="number" id="grid-cols" value="5" min="2" max="10" class="w-full border rounded p-1.5 text-center font-semibold text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Risk Threshold</label>
+                    <input type="number" id="risk-threshold" value="0.6" step="0.1" min="0" max="1" oninput="updateThresholdLive()" class="w-full border rounded p-1.5 text-center font-semibold text-sm">
+                </div>
+            </div>
+
+            <button type="button" onclick="resetGrid()" class="w-full text-xs text-brand-dark font-bold py-2 rounded-lg border border-brand-dark hover:bg-brand-bg transition">
+                Reset / Resize Grid
+            </button>
+
+            <hr class="border-gray-100">
+
+            <!-- Route Result Stats -->
+            <div class="space-y-2 bg-brand-bg p-3.5 rounded-xl border border-gray-200">
+                <div class="flex justify-between text-xs text-gray-600">
+                    <span>Priority Stops:</span>
+                    <span id="route-stops-count" class="font-bold text-gray-800">0 plots</span>
+                </div>
+                <div class="flex justify-between text-xs text-gray-600">
+                    <span>Path Steps:</span>
+                    <span id="route-steps-count" class="font-bold text-gray-800">0 steps</span>
+                </div>
+                <div class="flex justify-between text-xs text-gray-600">
+                    <span>Est. Travel Time:</span>
+                    <span id="route-travel-time" class="font-bold text-brand-dark">0.0 mins</span>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <button type="button" onclick="runRoutePlanner()" id="plan-route-btn" class="w-full bg-brand-dark text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition flex items-center justify-center gap-2 shadow-sm">
+                <i class="fa-solid fa-play"></i> Plan Optimal Route
+            </button>
+            <div id="route-error" class="hidden text-xs text-center text-red-600 font-semibold bg-red-50 p-2 rounded"></div>
+        </div>
+
+        <!-- Interactive Visual Grid Canvas -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+            <!-- The Grid Canvas Legend -->
+            <div class="w-full flex justify-between items-center mb-4 text-xs text-gray-500 flex-wrap gap-2">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> Start</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-purple-500 inline-block"></span> Target Plot</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop (&ge; <span id="legend-val">0.6</span>)</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-400 inline-block"></span> Obstacle</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-accent inline-block"></span> A*</span>
+            </div>
+
+            <!-- The Grid Container -->
+            <div id="farm-grid-visualizer" class="grid gap-2 p-4 bg-brand-bg rounded-2xl border border-gray-200 max-w-full overflow-auto"></div>
+
+            <!-- Step-by-Step Route Directions -->
+            <div id="route-directions-card" class="hidden w-full mt-4 bg-brand-bg rounded-xl p-4 border border-gray-200">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-person-walking text-brand-dark"></i> Step-by-Step Walking Directions
+                </h4>
+                <ol id="route-directions-list" class="space-y-1 text-xs text-gray-700 max-h-48 overflow-y-auto pr-2 list-decimal list-inside"></ol>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+     <!-- TAB 4: QUICK DISEASE SCAN -->
+<section id="disease-scan" class="tab-content space-y-6">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-2xl mx-auto">
+        <h2 class="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-microscope text-brand-dark"></i> AI Disease Diagnostics
+        </h2>
+        <p class="text-gray-500 text-sm mb-6">Upload a clear photo of a crop leaf to instantly identify potential diseases using our trained CNN model.</p>
+        
+        <form id="disease-scan-form" class="space-y-5">
+            <!-- Image Upload Area -->
+            <div>
+                <div id="scan-drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-gray-500 hover:bg-brand-bg hover:border-brand-accent transition cursor-pointer relative min-h-[200px]">
+                    
+                    <!-- Default Upload UI -->
+                    <div id="scan-upload-prompt" class="flex flex-col items-center">
+                        <i class="fa-solid fa-leaf text-4xl mb-3 text-brand-dark opacity-50"></i>
+                        <span class="text-sm font-semibold text-gray-700">Click to upload leaf photo</span>
+                        <span class="text-xs mt-1 text-gray-400">Supported formats: JPG, PNG</span>
+                    </div>
+
+                    <!-- Image Preview (Hidden by default) -->
+                    <img id="scan-image-preview" class="hidden absolute inset-0 w-full h-full object-cover rounded-xl" alt="Leaf Preview">
+                    
+                    <input type="file" id="scan-photo" accept="image/jpeg, image/png, image/jpg" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <button type="submit" id="submit-scan-btn" class="w-full bg-brand-dark text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition flex justify-center items-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-magnifying-glass text-brand-light"></i> Analyze Image
+            </button>
+        </form>
+
+        <!-- Results Card (Hidden by default) -->
+        <div id="scan-results-card" class="hidden mt-6 p-5 rounded-xl border border-gray-200 bg-brand-bg space-y-4 transition-all">
+            <h3 class="text-sm font-bold text-gray-600 uppercase tracking-wider border-b border-gray-300 pb-2">Analysis Results</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                    <span class="block text-xs text-gray-500 mb-1">Detected Class</span>
+                    <span id="scan-res-class" class="font-bold text-gray-800 text-sm">--</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                    <span class="block text-xs text-gray-500 mb-1">Confidence</span>
+                    <span id="scan-res-conf" class="font-bold text-brand-dark text-lg">--</span>
+                </div>
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                    <span class="block text-xs text-gray-500 mb-1">Risk Score</span>
+                    <span id="scan-res-risk" class="font-bold text-red-600 text-lg">--</span>
+                </div>
+            </div>
+
+            <div id="scan-error-msg" class="hidden text-sm text-center font-semibold p-3 rounded mt-2 bg-red-100 text-red-800"></div>
+        </div>
+    </div>
+</section>
+
+    </main>
+
+    <script>
+    // Automatically use the current host origin when served via FastAPI, with 127.0.0.1 fallback
+    const API_BASE = window.location.origin && window.location.origin.startsWith("http") ? window.location.origin : "http://127.0.0.1:8000";
+
+    // 1. Fetch Districts when Region changes
+    document.getElementById('plot-region').addEventListener('change', async (e) => {
+        const region = e.target.value;
+        const districtSelect = document.getElementById('plot-district');
+        const cropSelect = document.getElementById('plot-crop');
+        
+        // Reset downward dropdowns
+        districtSelect.innerHTML = '<option value="">Loading...</option>';
+        districtSelect.disabled = true;
+        cropSelect.innerHTML = '<option value="">Select District first...</option>';
+        cropSelect.disabled = true;
+
+        if (!region) {
+            districtSelect.innerHTML = '<option value="">Select Region first...</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/districts/${region}`);
+            if (!response.ok) throw new Error("Districts not found");
+            const data = await response.json();
+            
+            districtSelect.innerHTML = '<option value="">Select District...</option>';
+            data.districts.forEach(d => {
+                districtSelect.innerHTML += `<option value="${d}">${d}</option>`;
+            });
+            districtSelect.disabled = false;
+            districtSelect.classList.remove('bg-gray-50');
+        } catch (err) {
+            districtSelect.innerHTML = '<option value="">Error loading districts</option>';
+        }
+    });
+
+    // 2. Fetch Crops when District changes
+    document.getElementById('plot-district').addEventListener('change', async (e) => {
+        const district = e.target.value;
+        const region = document.getElementById('plot-region').value;
+        const cropSelect = document.getElementById('plot-crop');
+        
+        cropSelect.innerHTML = '<option value="">Loading...</option>';
+        cropSelect.disabled = true;
+
+        if (!district) {
+            cropSelect.innerHTML = '<option value="">Select District first...</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/crops/${region}/${district}`);
+            if (!response.ok) throw new Error("Crops not found");
+            const data = await response.json();
+            
+            cropSelect.innerHTML = '<option value="">Select Crop...</option>';
+            data.crops.forEach(c => {
+                cropSelect.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+            cropSelect.disabled = false;
+            cropSelect.classList.remove('bg-gray-50');
+        } catch (err) {
+            cropSelect.innerHTML = '<option value="">Error loading crops</option>';
+        }
+    });
+
+    // 3. Show selected filename for photo upload
+    document.getElementById('plot-photo').addEventListener('change', (e) => {
+        const nameDisplay = document.getElementById('file-name-display');
+        if (e.target.files.length > 0) {
+            nameDisplay.textContent = "Selected: " + e.target.files[0].name;
+            nameDisplay.classList.remove('hidden');
+        } else {
+            nameDisplay.classList.add('hidden');
+        }
+    });
+
+    // 4. Handle Form Submission
+    document.getElementById('plot-registration-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-plot-btn');
+        const feedback = document.getElementById('form-feedback');
+        
+        const farm_id = document.getElementById('plot-farm-id').value.trim() || 'default_farm';
+        const row = parseInt(document.getElementById('plot-row').value);
+        const col = parseInt(document.getElementById('plot-col').value);
+        const region = document.getElementById('plot-region').value;
+        const district = document.getElementById('plot-district').value;
+        const crop = document.getElementById('plot-crop').value;
+        const photoFile = document.getElementById('plot-photo').files[0];
+
+        // UI Loading State
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registering...';
+        feedback.className = "hidden";
+        
+        try {
+            // First API Call: Register the plot location and crop
+            const regRes = await fetch(`${API_BASE}/register-plot`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ row, col, region, district, crop, farm_id })
+            });
+            
+            if (!regRes.ok) {
+                const err = await regRes.json();
+                throw new Error(err.detail || "Failed to register plot");
+            }
+
+            // Second API Call: Upload the photo if provided
+            if (photoFile) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading Photo...';
+                const formData = new FormData();
+                formData.append('file', photoFile);
+                
+                const photoRes = await fetch(`${API_BASE}/upload-plot-photo?row=${row}&col=${col}&farm_id=${encodeURIComponent(farm_id)}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!photoRes.ok) {
+                    const err = await photoRes.json();
+                    throw new Error("Plot registered, but photo upload failed: " + (err.detail || ""));
+                }
+            }
+
+            // Success UI State
+            feedback.textContent = `Plot (${row}, ${col}) registered under Farm '${farm_id}' successfully!`;
+            feedback.className = "text-sm text-center font-semibold p-3 rounded mt-3 bg-green-100 text-green-800 block";
+            
+            // Sync selected farm & refresh views
+            localStorage.setItem('farmerhub_farm_id', farm_id);
+            await populateFarmsDropdown(farm_id);
+            loadDashboardData();
+            loadManagedPlots();
+            rebuildGrid();
+            
+            // Reset form completely
+            document.getElementById('plot-registration-form').reset();
+            document.getElementById('plot-farm-id').value = farm_id;
+            document.getElementById('file-name-display').classList.add('hidden');
+            document.getElementById('plot-district').disabled = true;
+            document.getElementById('plot-district').innerHTML = '<option value="">Select Region first...</option>';
+            document.getElementById('plot-crop').disabled = true;
+            document.getElementById('plot-crop').innerHTML = '<option value="">Select District first...</option>';
+
+        } catch (err) {
+            feedback.textContent = err.message;
+            feedback.className = "text-sm text-center font-semibold p-3 rounded mt-3 bg-red-100 text-red-800 block";
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-plus"></i> Register Plot';
+        }
+    });
+    // --- A* ROUTE PLANNER STATE & LOGIC ---
+let gridMode = 'start'; // 'start', 'target', or 'obstacle'
+let startNode = [0, 0];
+let targetNode = null;
+let obstacles = [];
+let plotRisks = {};
+
+function setGridMode(mode) {
+    gridMode = mode;
+    const startBtn = document.getElementById('mode-btn-start');
+    const targetBtn = document.getElementById('mode-btn-target');
+    const obsBtn = document.getElementById('mode-btn-obstacle');
+    
+    [startBtn, targetBtn, obsBtn].forEach(b => {
+        b.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition';
+    });
+
+    if (mode === 'start') {
+        startBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1 transition';
+    } else if (mode === 'target') {
+        targetBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-purple-500 bg-purple-50 text-purple-700 flex items-center justify-center gap-1 transition';
+        document.getElementById('use-single-target').checked = true;
+    } else {
+        obsBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-gray-600 bg-gray-200 text-gray-800 flex items-center justify-center gap-1 transition';
+    }
+}
+
+function resetGrid() {
+    startNode = [0, 0];
+    targetNode = null;
+    obstacles = [];
+    rebuildGrid();
+}
+
+function updateThresholdLive() {
+    const val = document.getElementById('risk-threshold').value;
+    document.getElementById('legend-val').textContent = val;
+    rebuildGrid();
+}
+
+function rebuildGrid() {
+    const rows = parseInt(document.getElementById('grid-rows').value) || 5;
+    const cols = parseInt(document.getElementById('grid-cols').value) || 5;
+    const threshold = parseFloat(document.getElementById('risk-threshold').value) || 0.6;
+    const useTarget = document.getElementById('use-single-target').checked;
+    const container = document.getElementById('farm-grid-visualizer');
+    
+    container.style.gridTemplateColumns = `repeat(${cols}, minmax(55px, 75px))`;
+    container.innerHTML = '';
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const cell = document.createElement('div');
+            cell.id = `cell-${r}-${c}`;
+            cell.className = 'aspect-square rounded-xl bg-white border border-gray-200 flex flex-col items-center justify-center text-xs font-bold cursor-pointer transition-all duration-200 hover:border-brand-dark shadow-sm relative select-none';
+            cell.onclick = () => handleCellClick(r, c);
+
+            const isStart = startNode[0] === r && startNode[1] === c;
+            const isTarget = useTarget && targetNode && targetNode[0] === r && targetNode[1] === c;
+            const isObstacle = obstacles.some(o => o[0] === r && o[1] === c);
+            const risk = plotRisks[`${r},${c}`] || 0;
+
+            if (isStart) {
+                cell.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600', 'ring-2', 'ring-blue-400');
+                cell.innerHTML = '<i class="fa-solid fa-location-dot text-base"></i><span class="text-[9px] mt-0.5">START</span>';
+            } else if (isTarget) {
+                cell.classList.add('border-purple-500', 'bg-purple-50', 'text-purple-700', 'ring-2', 'ring-purple-400');
+                cell.innerHTML = '<i class="fa-solid fa-bullseye text-base"></i><span class="text-[9px] mt-0.5">TARGET</span>';
+            } else if (isObstacle) {
+                cell.classList.add('bg-gray-400', 'border-gray-500', 'text-white');
+                cell.innerHTML = '<i class="fa-solid fa-ban"></i>';
+            } else if (risk >= threshold) {
+                cell.classList.add('bg-red-50', 'border-red-400', 'text-red-600');
+                cell.innerHTML = `<span class="text-[10px]">(${r},${c})</span><span class="text-[9px] bg-red-200 px-1 rounded mt-0.5">${Math.round(risk*100)}%</span>`;
+            } else {
+                cell.innerHTML = `<span class="text-gray-400 text-[10px]">(${r},${c})</span>`;
+            }
+
+            container.appendChild(cell);
+        }
+    }
+}
+
+function handleCellClick(r, c) {
+    if (gridMode === 'start') {
+        obstacles = obstacles.filter(o => !(o[0] === r && o[1] === c));
+        if (targetNode && targetNode[0] === r && targetNode[1] === c) targetNode = null;
+        startNode = [r, c];
+    } else if (gridMode === 'target') {
+        if (startNode[0] === r && startNode[1] === c) return;
+        obstacles = obstacles.filter(o => !(o[0] === r && o[1] === c));
+        targetNode = (targetNode && targetNode[0] === r && targetNode[1] === c) ? null : [r, c];
+        document.getElementById('use-single-target').checked = true;
+    } else if (gridMode === 'obstacle') {
+        if (startNode[0] === r && startNode[1] === c) return;
+        if (targetNode && targetNode[0] === r && targetNode[1] === c) targetNode = null;
+        const idx = obstacles.findIndex(o => o[0] === r && o[1] === c);
+        if (idx > -1) {
+            obstacles.splice(idx, 1);
+        } else {
+            obstacles.push([r, c]);
+        }
+    }
+    rebuildGrid();
+}
+
+async function runRoutePlanner() {
+    const rows = parseInt(document.getElementById('grid-rows').value) || 5;
+    const cols = parseInt(document.getElementById('grid-cols').value) || 5;
+    const threshold = parseFloat(document.getElementById('risk-threshold').value) || 0.6;
+    const useTarget = document.getElementById('use-single-target').checked;
+    const btn = document.getElementById('plan-route-btn');
+    const errBox = document.getElementById('route-error');
+
+    if (useTarget && !targetNode) {
+        errBox.textContent = "Please select a Target plot on the grid or switch off 'Direct Path to Target Plot'.";
+        errBox.classList.remove('hidden');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizing Path...';
+    errBox.classList.add('hidden');
+
+    rebuildGrid();
+
+    const payload = {
+        rows: rows,
+        cols: cols,
+        obstacles: obstacles,
+        start: startNode,
+        target: (useTarget && targetNode) ? targetNode : null,
+        risk_weights: plotRisks,
+        threshold: threshold,
+        plot_size_meters: 8.0,
+        walking_speed_m_per_min: 60.0
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/plan-route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Route planning failed");
+        }
+
+        const data = await res.json();
+        
+        document.getElementById('route-stops-count').textContent = useTarget ? `Target (${targetNode[0]},${targetNode[1]})` : `${data.stops.length} plots`;
+        document.getElementById('route-steps-count').textContent = `${data.route.length} steps`;
+        document.getElementById('route-travel-time').textContent = `${data.estimated_minutes} mins`;
+
+        // Render Step-by-step directions
+        const directionsCard = document.getElementById('route-directions-card');
+        const directionsList = document.getElementById('route-directions-list');
+        if (data.directions && data.directions.length > 0) {
+            directionsList.innerHTML = data.directions.map(dir => `<li class="p-1 rounded hover:bg-white transition">${dir}</li>`).join('');
+            directionsCard.classList.remove('hidden');
+        } else {
+            directionsCard.classList.add('hidden');
+        }
+
+        animateRoute(data.route, data.stops);
+
+    } catch (err) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> Plan Optimal Route';
+    }
+}
+
+function animateRoute(route, stops) {
+    route.forEach((step, index) => {
+        setTimeout(() => {
+            const [r, c] = step;
+            const cell = document.getElementById(`cell-${r}-${c}`);
+            if (!cell) return;
+
+            const isStart = startNode[0] === r && startNode[1] === c;
+            const isStop = stops.some(s => s[0] === r && s[1] === c);
+
+            if (!isStart && !isStop) {
+                cell.className = 'aspect-square rounded-xl bg-brand-accent text-brand-dark border-2 border-brand-dark flex flex-col items-center justify-center text-xs font-bold transition-all transform scale-95 shadow-md';
+                cell.innerHTML = `<span class="text-[9px] opacity-75">#${index+1}</span><i class="fa-solid fa-shoe-prints text-[10px]"></i>`;
+            } else if (isStop) {
+                cell.className = 'aspect-square rounded-xl bg-red-500 text-white border-2 border-brand-dark flex flex-col items-center justify-center text-xs font-bold transition-all transform scale-105 shadow-lg ring-2 ring-yellow-400';
+                cell.innerHTML = `<span class="text-[9px]">STOP</span><i class="fa-solid fa-bullseye text-sm"></i>`;
+            }
+        }, index * 120); // 120ms delay per step for a smooth walking effect
+    });
+}
+function getFarmId() {
+    const selectEl = document.getElementById('top-farm-select');
+    if (selectEl && selectEl.value && selectEl.value !== '__new__') {
+        return selectEl.value;
+    }
+    return localStorage.getItem('farmerhub_farm_id') || 'default_farm';
+}
+
+async function populateFarmsDropdown(activeFarm = null) {
+    const topSelect = document.getElementById('top-farm-select');
+    const filterSelect = document.getElementById('managed-farm-filter');
+    const currentFarm = activeFarm || getFarmId();
+
+    try {
+        const res = await fetch(`${API_BASE}/farms`);
+        const data = await res.json();
+        const farms = data.farms && data.farms.length > 0 ? [...data.farms] : ['default_farm'];
+        if (!farms.includes(currentFarm) && currentFarm && currentFarm !== 'all') {
+            farms.push(currentFarm);
+        }
+
+        if (topSelect) {
+            topSelect.innerHTML = farms.map(f => `<option value="${f}">${f}</option>`).join('') +
+                '<option value="__new__">+ New Farm ID...</option>';
+            topSelect.value = currentFarm;
+        }
+
+        if (filterSelect) {
+            const savedFilter = filterSelect.value || 'all';
+            filterSelect.innerHTML = '<option value="all">🌐 All Farms</option>' +
+                farms.map(f => `<option value="${f}">${f}</option>`).join('');
+            if (farms.includes(savedFilter) || savedFilter === 'all') {
+                filterSelect.value = savedFilter;
+            }
+        }
+    } catch (err) {
+        console.error("Error populating farms:", err);
+    }
+}
+
+async function onFarmSelectChange() {
+    const selectEl = document.getElementById('top-farm-select');
+    const val = selectEl.value;
+
+    if (val === '__new__') {
+        const newId = prompt("Enter new Farm ID name (e.g. 'north_farm', 'estate_field'):");
+        if (newId && newId.trim()) {
+            const cleanId = newId.trim().toLowerCase().replace(/\s+/g, '_');
+            localStorage.setItem('farmerhub_farm_id', cleanId);
+            await populateFarmsDropdown(cleanId);
+            const farmInput = document.getElementById('plot-farm-id');
+            if (farmInput) farmInput.value = cleanId;
+            loadDashboardData();
+            loadManagedPlots();
+        } else {
+            selectEl.value = getFarmId();
+        }
+        return;
+    }
+
+    localStorage.setItem('farmerhub_farm_id', val);
+    const farmInput = document.getElementById('plot-farm-id');
+    if (farmInput) farmInput.value = val;
+    loadDashboardData();
+    loadManagedPlots();
+}
+
+async function loadDashboardData() {
+    const healthScoreEl = document.getElementById('farm-health-score');
+    const weatherBadge = document.getElementById('weather-badge');
+    const weatherMessage = document.getElementById('weather-message');
+    const alertsContainer = document.getElementById('action-alerts');
+    const plotsContainer = document.getElementById('dashboard-plots-container');
+
+    try {
+        const farmId = getFarmId();
+        const response = await fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`);
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ detail: response.statusText }));
+            if (response.status === 400 && err.detail && err.detail.includes("No plots registered")) {
+                // Clean empty farm state
+                plotsContainer.innerHTML = `
+                    <div class="col-span-full p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl">
+                        <i class="fa-solid fa-seedling text-3xl text-gray-400 mb-3 block"></i>
+                        <h3 class="text-gray-700 font-bold mb-1">No Plots Registered Yet</h3>
+                        <p class="text-xs text-gray-500 mb-4">Register your first plot under farm '<strong>${farmId}</strong>' to start monitoring yield and disease risk.</p>
+                        <button onclick="switchTab('my-farm')" class="bg-brand-dark text-white text-xs font-bold px-4 py-2 rounded shadow hover:bg-opacity-90 transition">
+                            <i class="fa-solid fa-plus mr-1"></i> Register Your First Plot
+                        </button>
+                    </div>
+                `;
+                alertsContainer.innerHTML = `<li class="text-gray-400 text-xs italic">No alerts — register a plot to begin monitoring.</li>`;
+                healthScoreEl.textContent = "--";
+                return;
+            }
+            throw new Error(err.detail || "Failed to load dashboard data");
+        }
+
+        const data = await response.json();
+
+        // 1. Update Farm Health Score
+        healthScoreEl.textContent = `${Math.round(data.farm_health_score)}%`;
+        if (data.farm_health_score < 0.5) {
+            healthScoreEl.className = "text-6xl font-bold text-red-500 relative z-10";
+        } else if (data.farm_health_score < 0.8) {
+            healthScoreEl.className = "text-6xl font-bold text-yellow-400 relative z-10";
+        } else {
+            healthScoreEl.className = "text-6xl font-bold text-brand-accent relative z-10";
+        }
+
+        // 2. Update Weather Summary
+        const weather = data.weather_summary;
+        
+        document.getElementById('card-humidity').textContent = `${weather.humidity}%`;
+        document.getElementById('card-wind').textContent = `${weather.wind_speed}m/s`;
+        document.getElementById('card-temp').textContent = `${weather.temp}°C`;
+        if (weather.rain_expected_48h) {
+            weatherBadge.textContent = "Rain Expected";
+            weatherBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        } else if (weather.irrigation_alert) {
+            weatherBadge.textContent = "Irrigation Alert";
+            weatherBadge.className = "bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        } else {
+            weatherBadge.textContent = "Clear Skies";
+            weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        }
+        
+        // Use planting message if available, otherwise generic weather message
+        weatherMessage.textContent = weather.planting_message || 
+            (weather.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
+
+        // 3. Clear existing plots and alerts
+        alertsContainer.innerHTML = '';
+        plotsContainer.innerHTML = '';
+        
+        // Track risks for the Route Planner
+        plotRisks = {};
+
+        // 4. Populate Plots and Alerts
+        Object.entries(data.plots).forEach(([coords, plot]) => {
+            // Update route planner state globally
+            plotRisks[coords] = plot.urgency;
+
+            // --- Generate Alert Item (if urgency is high) ---
+            if (plot.urgency >= 0.6 || plot.recommendation) {
+                let alertColor = plot.urgency >= 0.8 ? 'red' : 'yellow';
+                alertsContainer.innerHTML += `
+                    <li class="flex items-start gap-2 bg-${alertColor}-50 p-2 rounded text-${alertColor}-800">
+                        <span class="font-bold block mt-0.5 text-xs whitespace-nowrap">Plot (${coords}):</span> 
+                        <span class="text-xs">${plot.recommendation || 'High risk detected. Needs attention.'}</span>
+                    </li>
+                `;
+            }
+
+            // --- Generate Plot Card ---
+            let statusBadge = "Healthy";
+            let badgeClass = "bg-green-100 text-green-800";
+            let progressColor = "bg-green-500";
+            
+            if (plot.urgency >= 0.8) {
+                statusBadge = "Critical";
+                badgeClass = "bg-red-100 text-red-800";
+                progressColor = "bg-red-500";
+            } else if (plot.urgency >= 0.5) {
+                statusBadge = "At Risk";
+                badgeClass = "bg-yellow-100 text-yellow-800";
+                progressColor = "bg-yellow-400";
+            }
+
+            // Calculate health percentage (inverse of urgency)
+            const healthPct = Math.max(0, Math.round((1 - plot.urgency) * 100));
+            const [plotR, plotC] = coords.split(',').map(n => n.trim());
+
+            plotsContainer.innerHTML += `
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition relative group">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Plot (${coords})</h4>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
+                            <button onclick="deletePlot('${farmId}', ${plotR}, ${plotC})" title="Delete Plot" class="text-gray-300 hover:text-red-600 transition p-0.5 text-xs">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
+                        <div class="flex justify-between">
+                            <span>Yield Risk:</span> 
+                            <span class="${plot.yield_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.yield_risk * 100)}%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Disease Risk:</span> 
+                            <span class="${plot.disease_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.disease_risk * 100)}%</span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+                        <div class="${progressColor} h-1.5 rounded-full transition-all duration-1000" style="width: ${healthPct}%"></div>
+                    </div>
+                    <div class="text-[9px] text-right text-gray-400 font-semibold mt-1">HEALTH: ${healthPct}%</div>
+                </div>
+            `;
+        });
+
+        // If no alerts were generated, show a clean state
+        if (alertsContainer.innerHTML === '') {
+            alertsContainer.innerHTML = `
+                <li class="flex items-start gap-2 bg-green-50 p-2 rounded text-green-800 text-sm">
+                    <i class="fa-solid fa-check-circle mt-0.5"></i>
+                    <span>All plots are currently within optimal parameters. No immediate action required.</span>
+                </li>
+            `;
+        }
+
+    } catch (err) {
+        // Fallback UI if backend is unvailable or no plots are registered
+        plotsContainer.innerHTML = `
+            <div class="col-span-full p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl">
+                <i class="fa-solid fa-seedling text-3xl text-gray-400 mb-3 block"></i>
+                <h3 class="text-gray-700 font-bold mb-1">No Farm Data Available</h3>
+                <p class="text-sm text-gray-500 mb-4">${err.message}</p>
+                <button onclick="switchTab('my-farm')" class="bg-brand-dark text-white text-sm font-bold px-4 py-2 rounded shadow hover:bg-opacity-90 transition">
+                    Register Your First Plot
+                </button>
+            </div>
+        `;
+        alertsContainer.innerHTML = `<li class="text-gray-500 text-sm italic">Waiting for plot data...</li>`;
+        healthScoreEl.textContent = "--";
+    }
+}
+// Helper for deleting a plot
+async function deletePlot(farmId, row, col) {
+    if (!confirm(`Delete Plot (${row}, ${col}) from Farm '${farmId}'?`)) return;
+    try {
+        const res = await fetch(`${API_BASE}/plots/${encodeURIComponent(farmId)}/${row}/${col}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Failed to delete plot");
+        }
+        loadDashboardData();
+        loadManagedPlots();
+        rebuildGrid();
+    } catch (err) {
+        alert("Error deleting plot: " + err.message);
+    }
+}
+
+async function loadManagedPlots() {
+    const container = document.getElementById('managed-plots-container');
+    if (!container) return;
+    const filterSelect = document.getElementById('managed-farm-filter');
+    const filterVal = filterSelect?.value || 'all';
+
+    container.innerHTML = `<p class="text-xs text-gray-400 italic col-span-full py-4 text-center"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading plots...</p>`;
+
+    try {
+        const url = filterVal === 'all' ? `${API_BASE}/plots` : `${API_BASE}/plots?farm_id=${encodeURIComponent(filterVal)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch plots");
+        const data = await res.json();
+
+        if (!data.plots || data.plots.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full p-6 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                    <i class="fa-solid fa-seedling text-2xl text-gray-300 mb-2 block"></i>
+                    <p class="text-xs text-gray-500 font-semibold mb-2">No registered plots found ${filterVal === 'all' ? 'across any farm' : `for farm '${filterVal}'`}.</p>
+                    <button type="button" onclick="document.getElementById('plot-row').focus()" class="text-xs text-brand-dark font-bold underline">
+                        Register a plot below &darr;
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = data.plots.map(p => `
+            <div class="bg-gray-50 hover:bg-white p-3.5 rounded-xl border border-gray-200 transition shadow-sm flex flex-col justify-between hover:shadow-md">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-brand-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-house-chimney text-[8px]"></i> ${p.farm_id}
+                        </span>
+                        <span class="bg-brand-light bg-opacity-30 text-brand-dark text-xs font-extrabold px-2 py-0.5 rounded">${p.crop}</span>
+                    </div>
+                    <div class="font-bold text-gray-800 text-sm">Plot (${p.row}, ${p.col})</div>
+                    <div class="text-xs text-gray-500 mt-0.5">${p.district}, ${p.region}</div>
+                    ${p.photo_path ? `<div class="mt-2 text-[11px] text-blue-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-image"></i> Photo attached</div>` : ''}
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
+                    <span class="text-gray-400 text-[10px]">${p.soil_ph ? 'pH ' + p.soil_ph : ''}</span>
+                    <button onclick="deletePlot('${p.farm_id}', ${p.row}, ${p.col})" class="text-red-500 hover:text-red-700 font-semibold text-xs flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition">
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        const isOffline = err.message.toLowerCase().includes('failed to fetch') || err.message.toLowerCase().includes('network');
+        container.innerHTML = `
+            <div class="col-span-full p-6 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                <i class="fa-solid fa-circle-exclamation text-2xl text-amber-500 mb-2 block"></i>
+                <p class="text-xs text-gray-700 font-bold mb-1">${isOffline ? 'Connecting to Backend Server...' : 'Unable to load plots'}</p>
+                <p class="text-[11px] text-gray-500 mb-3">${isOffline ? 'Make sure your backend server is running with <code>uvicorn main:app --reload</code>' : err.message}</p>
+                <button type="button" onclick="loadManagedPlots()" class="bg-brand-bg hover:bg-gray-200 text-brand-dark px-3 py-1 rounded text-xs font-bold transition">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Initial grid render on page load
+window.addEventListener('DOMContentLoaded', async () => {
+    // Restore saved farm ID and populate dropdowns
+    const savedFarm = localStorage.getItem('farmerhub_farm_id') || 'default_farm';
+    await populateFarmsDropdown(savedFarm);
+    const plotFarm = document.getElementById('plot-farm-id');
+    if (plotFarm) plotFarm.value = savedFarm;
+
+    rebuildGrid();
+    loadDashboardData(); 
+    loadManagedPlots();
+    updateTopWeather(); // Load top nav weather
+});
+
+async function updateTopWeather() {
+    const region = document.getElementById('top-region-select').value;
+    const textEl = document.getElementById('top-weather-text');
+    textEl.textContent = "Loading...";
+    
+    try {
+        const res = await fetch(`${API_BASE}/weather-advice`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ region: region })
+        });
+        if (!res.ok) throw new Error("Failed to fetch weather");
+        const data = await res.json();
+        textEl.textContent = `${data.temp}°C | ${data.rain_amount_mm}mm Rain`;
+    } catch (err) {
+        textEl.textContent = "Offline (Fallback)";
+    }
+}
+
+// Update the existing switchTab function (which is inside the first <script> tag near the HTML tabs) 
+// to refresh the dashboard data whenever the user clicks back to it.
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
+        btn.classList.remove('border-brand-dark', 'text-brand-dark');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    document.getElementById(tabId).classList.add('active');
+    const activeBtn = document.getElementById('tab-btn-' + tabId);
+    activeBtn.classList.remove('border-transparent', 'text-gray-500');
+    activeBtn.classList.add('border-brand-dark', 'text-brand-dark');
+
+    // Refresh data if switching back to dashboard
+    if (tabId === 'dashboard') {
+        loadDashboardData();
+    }
+    if (tabId === 'my-farm') {
+        loadManagedPlots();
+    }
+    // Refresh A* grid if switching to route planner (ensures updated risk weights are applied)
+    if (tabId === 'route-planner') {
+        rebuildGrid();
+    }
+}
+// --- QUICK DISEASE SCAN LOGIC ---
+
+// 1. Handle Image Preview
+document.getElementById('scan-photo').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('scan-image-preview');
+    const prompt = document.getElementById('scan-upload-prompt');
+    const resultsCard = document.getElementById('scan-results-card');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.remove('hidden');
+            prompt.classList.add('hidden');
+            // Hide previous results when a new image is selected
+            resultsCard.classList.add('hidden');
+        }
+        reader.readAsDataURL(file);
+    } else {
+        preview.classList.add('hidden');
+        preview.src = "";
+        prompt.classList.remove('hidden');
+    }
+});
+
+// 2. Handle Form Submission & API Fetch
+document.getElementById('disease-scan-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const btn = document.getElementById('submit-scan-btn');
+    const photoFile = document.getElementById('scan-photo').files[0];
+    const resultsCard = document.getElementById('scan-results-card');
+    const errorMsg = document.getElementById('scan-error-msg');
+    
+    if (!photoFile) return;
+
+    // Reset UI State
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-brand-light"></i> Analyzing...';
+    resultsCard.classList.remove('hidden');
+    errorMsg.classList.add('hidden');
+    
+    // Set placeholder text while fetching
+    document.getElementById('scan-res-class').textContent = "Processing...";
+    document.getElementById('scan-res-conf').textContent = "--";
+    document.getElementById('scan-res-risk').textContent = "--";
+
+    const formData = new FormData();
+    formData.append('file', photoFile);
+
+    try {
+        const response = await fetch(`${API_BASE}/detect-disease`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || "Failed to analyze image");
+        }
+
+        const data = await response.json();
+        
+        // Clean up the predicted class name (e.g., "Corn_(maize)___healthy" -> "Corn (Maize) - Healthy")
+        const cleanClassName = data.predicted_class.replace(/[_]+/g, ' ').replace(/\(/g, '').replace(/\)/g, '');
+
+        // Update UI with results
+        document.getElementById('scan-res-class').textContent = cleanClassName;
+        document.getElementById('scan-res-conf').textContent = `${(data.confidence * 100).toFixed(1)}%`;
+        
+        const riskEl = document.getElementById('scan-res-risk');
+        riskEl.textContent = data.risk_score.toFixed(2);
+        
+        // Dynamic coloring for risk score
+        if (data.risk_score === 0) {
+            riskEl.className = "font-bold text-green-600 text-lg";
+        } else if (data.risk_score < 0.5) {
+            riskEl.className = "font-bold text-yellow-500 text-lg";
+        } else {
+            riskEl.className = "font-bold text-red-600 text-lg";
+        }
+
+    } catch (err) {
+        // Display Error
+        document.getElementById('scan-res-class').textContent = "Error";
+        errorMsg.textContent = err.message;
+        errorMsg.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass text-brand-light"></i> Analyze Image';
+    }
+});
+</script>
+</body>
+</html>

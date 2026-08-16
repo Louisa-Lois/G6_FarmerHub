@@ -10,7 +10,7 @@ import math
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.astar_route import astar
 
@@ -23,6 +23,7 @@ from core.astar_route import astar
 # test A* against.
 # ---------------------------------------------------------------------
 
+
 def dijkstra(grid, start, goal, risk_weights):
     def neighbors(node):
         r, c = node
@@ -34,7 +35,7 @@ def dijkstra(grid, start, goal, risk_weights):
     def move_cost(node):
         base = 1.0
         risk = risk_weights.get(node, 0.0)
-        return max(0.1, base - risk)
+        return max(0.01, base - (risk * 2))
 
     dist = {start: 0.0}
     heap = [(0.0, start)]
@@ -49,16 +50,17 @@ def dijkstra(grid, start, goal, risk_weights):
             return d
         for nxt in neighbors(current):
             nd = d + move_cost(nxt)
-            if nd < dist.get(nxt, float('inf')):
+            if nd < dist.get(nxt, float("inf")):
                 dist[nxt] = nd
                 heapq.heappush(heap, (nd, nxt))
 
-    return float('inf')
+    return float("inf")
 
 
 # ---------------------------------------------------------------------
 # Sanity tests
 # ---------------------------------------------------------------------
+
 
 def test_finds_valid_path_simple_grid():
     """Basic case: open 4x4 grid, no obstacles, no risk. Confirms A*
@@ -84,7 +86,7 @@ def test_no_path_when_goal_unreachable():
     grid[(3, 2)] = False
     path, cost = astar(grid, start=(0, 0), goal=(3, 3), risk_weights={})
     assert path is None
-    assert cost == float('inf')
+    assert cost == float("inf")
 
 
 def test_obstacle_forces_detour():
@@ -103,6 +105,7 @@ def test_obstacle_forces_detour():
 # ~282% more expensive than optimal, because an overestimating heuristic
 # lets A* prune away the actually-cheapest path too early.
 # ---------------------------------------------------------------------
+
 
 def test_matches_dijkstra_on_adversarial_risk_grid():
     """A high-risk 'shortcut' corridor sits off the straight-line path.
@@ -136,6 +139,7 @@ def test_matches_dijkstra_on_multiple_random_grids():
     grids and confirm A* always matches Dijkstra's optimal cost, not
     just the one hand-crafted adversarial case above."""
     import random
+
     random.seed(7)
 
     for trial in range(10):
@@ -143,8 +147,12 @@ def test_matches_dijkstra_on_multiple_random_grids():
         grid = {(r, c): True for r in range(rows) for c in range(cols)}
         # randomly block a few cells, but never start/goal
         obstacles = random.sample(
-            [(r, c) for r in range(rows) for c in range(cols)
-             if (r, c) not in [(0, 0), (rows - 1, cols - 1)]],
+            [
+                (r, c)
+                for r in range(rows)
+                for c in range(cols)
+                if (r, c) not in [(0, 0), (rows - 1, cols - 1)]
+            ],
             k=5,
         )
         for o in obstacles:
@@ -152,19 +160,42 @@ def test_matches_dijkstra_on_multiple_random_grids():
 
         risk_weights = {
             (r, c): random.choice([0.0, 0.3, 0.6, 0.9])
-            for r in range(rows) for c in range(cols)
+            for r in range(rows)
+            for c in range(cols)
         }
 
         start, goal = (0, 0), (rows - 1, cols - 1)
         astar_path, astar_cost = astar(grid, start, goal, risk_weights)
         dijkstra_cost = dijkstra(grid, start, goal, risk_weights)
 
-        if dijkstra_cost == float('inf'):
+        if dijkstra_cost == float("inf"):
             assert astar_path is None
         else:
             assert math.isclose(astar_cost, dijkstra_cost, rel_tol=1e-9), (
                 f"Trial {trial}: A* cost {astar_cost} != Dijkstra cost {dijkstra_cost}"
             )
+
+
+from core.route_planner import plan_single_route, generate_step_directions
+
+
+def test_plan_single_route_finds_direct_path():
+    grid = {(r, c): True for r in range(5) for c in range(5)}
+    grid[(1, 1)] = False
+    result = plan_single_route(grid, start=(0, 0), target=(2, 2), risk_weights={})
+    assert result["stops"] == [(2, 2)]
+    assert result["route"][0] == (0, 0)
+    assert result["route"][-1] == (2, 2)
+    assert (1, 1) not in result["route"]
+
+
+def test_generate_step_directions():
+    route = [(0, 0), (0, 1), (1, 1), (2, 1)]
+    directions = generate_step_directions(route, plot_size_meters=8.0)
+    assert len(directions) == 3
+    assert "East to (0, 1)" in directions[0]
+    assert "South to (1, 1)" in directions[1]
+    assert "South to (2, 1)" in directions[2]
 
 
 if __name__ == "__main__":
@@ -175,8 +206,11 @@ if __name__ == "__main__":
         test_obstacle_forces_detour,
         test_matches_dijkstra_on_adversarial_risk_grid,
         test_matches_dijkstra_on_multiple_random_grids,
+        test_plan_single_route_finds_direct_path,
+        test_generate_step_directions,
     ]
     for t in tests:
         t()
         print(f"PASS: {t.__name__}")
     print(f"\nAll {len(tests)} tests passed.")
+

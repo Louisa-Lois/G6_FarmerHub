@@ -1,109 +1,145 @@
-# FarmerHub AI — Backend & A* Route Optimization
+# FarmerHub AI 🌱
 
-**Module owner:** Daniel — Search Algorithms, Backend, AI Assistant (stretch)
+**CS 254 — Introduction to Artificial Intelligence (Final Project)**  
+**Team Members:** Louisa-Lois Adjoka, Daniel Ekpale, Chrishelle Wiafe, Kwasi Bekae Ackonor
 
-This is the backend server for FarmerHub AI: it hosts every team member's
-model behind one FastAPI app, and implements the A\* route optimization
-module (farm inspection/irrigation route planning, prioritizing
-high-risk plots).
+---
 
-## What's in this module
+## 🚀 Project Overview
 
-- **A\* route optimization** (`core/astar_route.py`, `core/grid_builder.py`,
-  `core/route_planner.py`) — finds the lowest-cost inspection route across
-  a farm grid, using an admissible heuristic and risk-weighted node costs
-  from the yield and disease models.
-- **Backend integration** (`main.py`) — the single point every other
-  module's work passes through: yield prediction, disease detection,
-  route planning, and weather advice, each exposed as an HTTP endpoint.
+FarmerHub AI is an intelligent decision-support system designed to help smallholder farmers in Ghana optimize their daily operations. By consolidating multiple AI techniques into a single, accessible dashboard, the system monitors farm conditions, predicts risks, and generates actionable, weather-aware recommendations.
 
-## Project structure
+**Core AI Modules Implemented:**
+1. **Yield Prediction (Supervised ML - Random Forest):** Predicts crop yield in tonnes/hectare based on district-level soil chemistry, historical rainfall, and crop type.
+2. **Disease Detection (Computer Vision - CNN):** Analyzes uploaded leaf photos to classify diseases across 38 distinct categories and assigns a severity risk score.
+3. **Route Optimization (Search - A* Algorithm):** Calculates the most efficient physical inspection route across a farm grid. It utilizes a risk-weighted heuristic to mathematically prioritize detours through diseased or low-yielding plots.
 
-```
-backend/
-├── main.py                  # FastAPI app -- all endpoints
-├── requirements.txt          # pinned versions
-├── core/
-│   ├── astar_route.py        # A* search
-│   ├── grid_builder.py       # farm grid + risk-weight construction
-│   ├── route_planner.py      # multi-stop routing + travel time
-│   ├── yield_connector.py    # yield model integration (no TF dependency)
-│   ├── disease_connector.py  # disease model integration
-│   ├── integration_connectors.py  # combines yield + disease
-│   ├── yield_model.py        # Chrishelle's yield model
-│   └── weather.py            # Louisa-Lois's weather module
-├── models/
-│   ├── yield_model.joblib
-│   ├── disease_model.keras
-│   └── class_names.json
-└── tests/
-    └── test_astar.py         # sanity + adversarial tests vs. Dijkstra
+These modules feed into the **Farm Health Dashboard**, which overlays live weather forecasting to deliver urgency alerts (e.g., advising a farmer to delay chemical spraying if heavy rain is imminent).
+
+---
+
+## ⚙️ Setup & Installation
+
+The system is designed for easy reproduction. The Vanilla JS/Tailwind frontend is served directly by the FastAPI backend, meaning **no separate Node.js or npm setup is required**.
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git
+cd Group-6-Final-Project-FarmerHub
 ```
 
-## Setup
+### 2. Create and Activate a Virtual Environment
 
+**On macOS/Linux:**
 ```bash
 python3 -m venv venv
-source venv/bin/activate        # Mac/Linux
-venv\Scripts\activate           # Windows
+source venv/bin/activate
+```
 
+**On Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### Weather endpoint API key
+### 4. Configure the Environment
+The Weather Decision Support module requires an OpenWeatherMap API key.
 
-`/weather-advice` needs a real OpenWeatherMap key:
+Copy the provided example file:
+```bash
+cp .env.example .env
+```
 
-1. Copy `.env.example` to `.env` in this folder.
-2. Replace `your_key_here` with a real key.
-3. Never commit `.env` or share a real key outside your own file — it's
-   already in `.gitignore`.
+Open the `.env` file and replace the placeholder with your actual API key:
+```env
+OWM_API_KEY=your_actual_api_key_here
+```
 
-## Running it
+*(Note: If no API key is provided, the weather module includes a robust offline failsafe with fallback data).*
 
+---
+
+## 💻 How to Run the System
+
+With your virtual environment activated, start the FastAPI server:
 ```bash
 uvicorn main:app --reload
 ```
 
-Wait for `Uvicorn running on http://127.0.0.1:8000` (TensorFlow + model
-loading takes ~15-20s after that). Open `http://127.0.0.1:8000/docs`
-for the interactive API page.
+> **Note:** The server takes approximately 10-15 seconds to boot as it loads the Scikit-Learn Random Forest and TensorFlow CNN models into memory.
 
-## Endpoints
+Once you see `Application startup complete`, open your web browser and navigate to:
+👉 **http://127.0.0.1:8000**
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/health` | Confirms the server and both models loaded |
-| POST | `/predict-yield` | Chrishelle's yield model |
-| POST | `/detect-disease` | Kwasi's disease model (file upload) |
-| POST | `/plan-route` | A\* route optimization |
-| POST | `/weather-advice` | Louisa-Lois's weather-based decision support |
+*(Interactive API documentation is also available at **http://127.0.0.1:8000/docs**)*
 
-## Testing
+---
 
+## 🔍 Usage Walkthrough (Grader Guide)
+
+To see all AI modules interacting seamlessly, follow this walkthrough in the web UI:
+
+1. **Register a Farm Plot (Yield Model & Plot Registry):**
+   - Click the **"My Farm"** tab.
+   - Set coordinates to **Row 0, Column 0**.
+   - Select **Region: ASHANTI**, **District: AMANSIE WEST**, **Crop: MAIZE**.
+   - Click **Register Plot**. The backend automatically retrieves the soil chemistry for this district and computes baseline yield risk.
+
+2. **Diagnose a Crop (CNN Model):**
+   - Click the **"Quick Scan"** tab.
+   - Upload an image of a crop leaf (e.g., tomato, corn, potato leaf).
+   - Click **Analyze Image**. The CNN returns the predicted disease class, confidence percentage, and computed risk score.
+
+3. **Optimize Inspection Route (A\* Search Algorithm):**
+   - Click the **"Route Planner"** tab.
+   - Use the **"Obstacle"** mode to place walls or fences on the grid.
+   - Click **Plan Optimal Route** (or select a specific Target plot for direct navigation).
+   - The algorithm animates the step-by-step optimal path, actively prioritizing detours through high-risk plots.
+
+4. **Review Farm Health (Dashboard Aggregation):**
+   - Click the **"Dashboard"** tab.
+   - View the unified **Farm Health Score**, priority action alerts, and live weather conditions with actionable agricultural advice.
+
+---
+
+## 🧪 Running the Tests
+
+To verify the logic and mathematical admissibility of the algorithms, run the Pytest suite:
 ```bash
-python -m pytest tests/test_astar.py -v
+python -m pytest tests/ -v
 ```
 
-`test_astar.py` is the evaluation artifact for the A\* module (same role
-Kwasi's classification report and Chrishelle's MAE/MAPE numbers play for
-theirs). It includes:
-- Sanity checks (valid path found, obstacles avoided, unreachable goals
-  correctly reported)
-- An adversarial test and a 10-trial randomized comparison against a
-  from-scratch Dijkstra implementation, confirming A\*'s heuristic is
-  admissible (returns truly optimal routes, not just "a route")
+This suite verifies:
+- `test_astar.py`: Adversarial testing confirming the A* heuristic is admissible and matches a ground-truth Dijkstra baseline on complex risk-weighted grids.
+- `test_yield_service.py`: Validates the feature engineering pipeline and guarantees prediction consistency with the trained Random Forest model.
+- `test_plot_registry_and_farm_health.py`: Verifies multi-farm isolation, district lookup defaults, and end-to-end dashboard health score calculation.
 
-## Known open items
+---
 
-- `DISEASE_IMG_SIZE` in `main.py` is still `(96, 96)` — this matches the
-  current CPU-trained prototype model. Once Kwasi's real 256×256 model
-  is swapped into `models/`, this constant must change to `(256, 256)`
-  in the same commit, or predictions will be silently wrong.
-- CORS in `main.py` currently assumes a separate React/Vite dev server.
-  If the frontend ends up served directly by FastAPI as static files
-  instead, this config becomes unnecessary and should be removed —
-  decision pending with Louisa-Lois.
-- `demo-frontend/` (if present locally) is a personal dev/testing tool,
-  not a project deliverable — it's git-ignored and shouldn't be part of
-  the branch that merges into `main`.
+## 📂 Repository Structure
+
+* `main.py` — The core FastAPI application, API endpoints, and static file server.
+* `requirements.txt` — Pinned environment dependencies required to run the project.
+* `README.md` — Master project documentation and setup guide.
+* `PROJECT_LOG.md` — Running record of data cleaning decisions, dead ends, and model evaluation history.
+* `.env.example` — Template for environment variables (OpenWeatherMap API key).
+* `.gitignore` / `.gitattributes` — Git configurations.
+
+**Directories:**
+* `core/` — Contains application logic and algorithms:
+  * `astar_route.py`, `grid_builder.py`, `route_planner.py` (A* Search & Route Optimization).
+  * `yield_model.py`, `yield_service.py`, `yield_connector.py` (Random Forest Yield Prediction).
+  * `disease_connector.py` (CNN Disease Detection Adapter).
+  * `weather.py` (OpenWeatherMap live decision support).
+  * `farm_health_dashboard.py` (Unified Farm Health Score aggregator).
+  * `plot_registry.py` (In-memory farm plot database and district defaults).
+* `tests/` — Pytest test suite.
+* `models/` — Trained `.keras` (CNN) model, `.joblib` (Random Forest) model, and `class_names.json`.
+* `data/` — Cleaned training datasets (`farmerhub_yield_training_data_clean.csv`) and model prediction logs.
+* `static/` — Frontend user interface (`index.html`).
+* `notebooks/` — Jupyter notebooks documenting data cleaning, feature engineering, and model training.

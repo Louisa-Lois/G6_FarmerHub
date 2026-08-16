@@ -25,15 +25,11 @@ def astar(grid, start, goal, risk_weights):
              or (None, float('inf')) if no path exists.
     """
 
-    MIN_STEP_COST = 0.1  # must match the floor used in move_cost()
-
     def heuristic(node):
-        # Straight-line distance to goal, scaled by the CHEAPEST possible
-        # step cost. Risk-discounting can push real step costs as low as
-        # MIN_STEP_COST, so the heuristic must assume that best case too --
-        # otherwise it can overestimate remaining cost and break optimality.
+        # Straight-line distance to goal -- never overestimates true
+        # travel distance, so it stays admissible.
         (r1, c1), (r2, c2) = node, goal
-        return math.hypot(r2 - r1, c2 - c1) * MIN_STEP_COST
+        return 0.01 * math.hypot(r2 - r1, c2 - c1)
 
     def neighbors(node):
         r, c = node
@@ -44,12 +40,11 @@ def astar(grid, start, goal, risk_weights):
                 yield nxt
 
     def move_cost(node):
-        # Base cost of 1 per step, reduced by risk urgency so A*
-        # is drawn toward high-risk plots. Clamp so cost never goes <= 0
-        # (that would break admissibility).
         base = 1.0
         risk = risk_weights.get(node, 0.0)
-        return max(0.1, base - risk)
+        # Apply a much steeper discount (0.01 instead of 0.1) to force A*
+        # to aggressively detour towards high-risk plots.
+        return max(0.01, base - (risk * 2))
 
     open_heap = [(heuristic(start), 0.0, start, None)]
     best_g = {start: 0.0}
@@ -74,11 +69,13 @@ def astar(grid, start, goal, risk_weights):
 
         for nxt in neighbors(current):
             tentative_g = g + move_cost(nxt)
-            if tentative_g < best_g.get(nxt, float('inf')):
+            if tentative_g < best_g.get(nxt, float("inf")):
                 best_g[nxt] = tentative_g
-                heapq.heappush(open_heap, (tentative_g + heuristic(nxt), tentative_g, nxt, current))
+                heapq.heappush(
+                    open_heap, (tentative_g + heuristic(nxt), tentative_g, nxt, current)
+                )
 
-    return None, float('inf')
+    return None, float("inf")
 
 
 if __name__ == "__main__":
