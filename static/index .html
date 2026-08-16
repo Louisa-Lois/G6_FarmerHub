@@ -44,9 +44,17 @@
                 <h1 class="text-xl font-bold text-brand-dark tracking-tight">FarmersHub</h1>
             </div>
 
-            <!-- Weather Widget (Will hook to /weather-advice) -->
-            <div class="hidden md:flex items-center bg-brand-bg px-4 py-1.5 rounded-full border border-gray-200 text-sm font-medium gap-4">
-            <div class="flex items-center gap-1">
+            <!-- Weather & Farm Selector Widget -->
+            <div class="hidden md:flex items-center bg-brand-bg px-4 py-1.5 rounded-full border border-gray-200 text-sm font-medium gap-3">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-house-chimney text-brand-dark"></i>
+                    <select id="top-farm-select" onchange="onFarmSelectChange()" class="bg-white border border-gray-300 rounded px-2 py-0.5 text-xs font-bold text-brand-dark outline-none cursor-pointer max-w-[150px]">
+                        <option value="default_farm">default_farm</option>
+                        <option value="__new__">+ New Farm...</option>
+                    </select>
+                </div>
+                <div class="w-px h-4 bg-gray-300"></div>
+                <div class="flex items-center gap-1">
                     <i class="fa-solid fa-location-dot text-gray-500"></i>
                     <select id="top-region-select" onchange="updateTopWeather()" class="bg-transparent border-none outline-none cursor-pointer">
                         <option value="ASHANTI">Ashanti</option>
@@ -180,22 +188,55 @@
             </div>
         </section>
 
-        <!-- TAB 2: MY FARM (Plot Registration) -->
+        <!-- TAB 2: MY FARM -->
 <section id="my-farm" class="tab-content space-y-6">
+    <!-- 1. TOP: All Registered Farms & Plots Overview -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-4xl mx-auto space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-brand-dark"></i> All Registered Farms & Plots
+                </h2>
+                <p class="text-xs text-gray-500">Overview and management of all active plots across your registered farms.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-gray-500 font-semibold">Filter Farm:</label>
+                <select id="managed-farm-filter" onchange="loadManagedPlots()" class="bg-brand-bg border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-bold text-brand-dark outline-none cursor-pointer">
+                    <option value="all">🌐 All Farms</option>
+                </select>
+                <button type="button" onclick="loadManagedPlots()" title="Refresh" class="bg-brand-bg hover:bg-gray-200 text-brand-dark px-2 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cards container for all plots -->
+        <div id="managed-plots-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-1">
+            <p class="text-xs text-gray-400 italic col-span-full py-4 text-center">Loading plots...</p>
+        </div>
+    </div>
+
+    <!-- 2. BOTTOM: Register a New Plot Form -->
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 max-w-2xl mx-auto">
-        <h2 class="text-2xl font-bold text-gray-800 mb-2">Register a New Plot</h2>
-        <p class="text-gray-500 text-sm mb-6">Define your plot location and assign a crop to begin monitoring yield and disease risk.</p>
+        <h2 class="text-xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-circle-plus text-brand-dark"></i> Register a New Plot
+        </h2>
+        <p class="text-gray-500 text-xs mb-5">Define your plot location and assign a crop to begin monitoring yield and disease risk.</p>
         
         <form id="plot-registration-form" class="space-y-5">
-            <!-- Grid Location -->
-            <div class="grid grid-cols-2 gap-4">
+            <!-- Farm ID & Grid Coordinates -->
+            <div class="grid grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Row</label>
-                    <input type="number" id="plot-row" min="0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent transition">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Farm ID</label>
+                    <input type="text" id="plot-farm-id" value="default_farm" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent font-semibold text-sm">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Column</label>
-                    <input type="number" id="plot-col" min="0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent transition">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Row Position</label>
+                    <input type="number" id="plot-row" min="0" max="10" placeholder="e.g. 0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Column Position</label>
+                    <input type="number" id="plot-col" min="0" max="10" placeholder="e.g. 0" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent">
                 </div>
             </div>
 
@@ -204,7 +245,6 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
                     <select id="plot-region" required class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-brand-accent bg-white">
-                        <option value="">Select Region...</option>
                         <option value="">Select Region...</option>
                         <option value="AHAFO">Ahafo</option>
                         <option value="ASHANTI">Ashanti</option>
@@ -223,8 +263,6 @@
                         <option value="WESTERN">Western</option>
                         <option value="WESTERN NORTH">Western North</option>
                     </select>   
-</select>
-                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">District</label>
@@ -249,7 +287,6 @@
                     <i class="fa-solid fa-cloud-arrow-up text-3xl mb-2"></i>
                     <span class="text-sm">Click to upload or drag and drop</span>
                     <span class="text-xs mt-1">JPEG, PNG (Used for Disease Risk)</span>
-                    <!-- The input stretches over the whole box invisibly -->
                     <input type="file" id="plot-photo" accept="image/jpeg, image/png, image/jpg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                 </div>
                 <p id="file-name-display" class="text-xs text-brand-dark font-semibold mt-2 hidden"></p>
@@ -278,14 +315,25 @@
             <!-- Mode Selector -->
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Click Mode</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="setGridMode('start')" id="mode-btn-start" class="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 transition">
-                        <i class="fa-solid fa-location-dot"></i> Start Gate
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button type="button" onclick="setGridMode('start')" id="mode-btn-start" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1 transition">
+                        <i class="fa-solid fa-location-dot"></i> Start
                     </button>
-                    <button type="button" onclick="setGridMode('obstacle')" id="mode-btn-obstacle" class="px-3 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1.5 transition">
+                    <button type="button" onclick="setGridMode('target')" id="mode-btn-target" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition">
+                        <i class="fa-solid fa-bullseye"></i> Target
+                    </button>
+                    <button type="button" onclick="setGridMode('obstacle')" id="mode-btn-obstacle" class="px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition">
                         <i class="fa-solid fa-ban"></i> Obstacle
                     </button>
                 </div>
+            </div>
+
+            <!-- Single Target Toggle -->
+            <div class="bg-gray-50 p-2.5 rounded-lg border border-gray-200 flex items-center justify-between">
+                <label for="use-single-target" class="text-xs font-bold text-gray-700 cursor-pointer flex items-center gap-2">
+                    <i class="fa-solid fa-crosshairs text-purple-600"></i> Direct Path to Target Plot
+                </label>
+                <input type="checkbox" id="use-single-target" onchange="rebuildGrid()" class="w-4 h-4 text-brand-dark rounded cursor-pointer">
             </div>
 
            <!-- Parameters -->
@@ -335,8 +383,10 @@
 
         <!-- Interactive Visual Grid Canvas -->
         <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center">
-            <div class="w-full flex justify-between items-center mb-4 text-xs text-gray-500">
+            <!-- The Grid Canvas Legend -->
+            <div class="w-full flex justify-between items-center mb-4 text-xs text-gray-500 flex-wrap gap-2">
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> Start</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-purple-500 inline-block"></span> Target Plot</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Priority Stop (&ge; <span id="legend-val">0.6</span>)</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-400 inline-block"></span> Obstacle</span>
                 <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-brand-accent inline-block"></span> A*</span>
@@ -344,6 +394,14 @@
 
             <!-- The Grid Container -->
             <div id="farm-grid-visualizer" class="grid gap-2 p-4 bg-brand-bg rounded-2xl border border-gray-200 max-w-full overflow-auto"></div>
+
+            <!-- Step-by-Step Route Directions -->
+            <div id="route-directions-card" class="hidden w-full mt-4 bg-brand-bg rounded-xl p-4 border border-gray-200">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-person-walking text-brand-dark"></i> Step-by-Step Walking Directions
+                </h4>
+                <ol id="route-directions-list" class="space-y-1 text-xs text-gray-700 max-h-48 overflow-y-auto pr-2 list-decimal list-inside"></ol>
+            </div>
         </div>
 
     </div>
@@ -408,28 +466,9 @@
 
     </main>
 
-    <!-- Tab Logic -->
     <script>
-        function switchTab(tabId) {
-            // Hide all contents
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            // Reset all buttons
-            document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
-                btn.classList.remove('border-brand-dark', 'text-brand-dark');
-                btn.classList.add('border-transparent', 'text-gray-500');
-            });
-            
-            // Show selected content
-            document.getElementById(tabId).classList.add('active');
-            // Highlight selected button
-            const activeBtn = document.getElementById('tab-btn-' + tabId);
-            activeBtn.classList.remove('border-transparent', 'text-gray-500');
-            activeBtn.classList.add('border-brand-dark', 'text-brand-dark');
-        }
-    </script>
-    <script>
-    // Point this to Daniel's backend. When running locally, it's usually localhost:8000
-    const API_BASE = "http://127.0.0.1:8000";
+    // Automatically use the current host origin when served via FastAPI, with 127.0.0.1 fallback
+    const API_BASE = window.location.origin && window.location.origin.startsWith("http") ? window.location.origin : "http://127.0.0.1:8000";
 
     // 1. Fetch Districts when Region changes
     document.getElementById('plot-region').addEventListener('change', async (e) => {
@@ -511,6 +550,7 @@
         const btn = document.getElementById('submit-plot-btn');
         const feedback = document.getElementById('form-feedback');
         
+        const farm_id = document.getElementById('plot-farm-id').value.trim() || 'default_farm';
         const row = parseInt(document.getElementById('plot-row').value);
         const col = parseInt(document.getElementById('plot-col').value);
         const region = document.getElementById('plot-region').value;
@@ -528,7 +568,7 @@
             const regRes = await fetch(`${API_BASE}/register-plot`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ row, col, region, district, crop })
+                body: JSON.stringify({ row, col, region, district, crop, farm_id })
             });
             
             if (!regRes.ok) {
@@ -542,7 +582,7 @@
                 const formData = new FormData();
                 formData.append('file', photoFile);
                 
-                const photoRes = await fetch(`${API_BASE}/upload-plot-photo?row=${row}&col=${col}`, {
+                const photoRes = await fetch(`${API_BASE}/upload-plot-photo?row=${row}&col=${col}&farm_id=${encodeURIComponent(farm_id)}`, {
                     method: 'POST',
                     body: formData
                 });
@@ -554,11 +594,19 @@
             }
 
             // Success UI State
-            feedback.textContent = `Plot (${row}, ${col}) registered successfully!`;
+            feedback.textContent = `Plot (${row}, ${col}) registered under Farm '${farm_id}' successfully!`;
             feedback.className = "text-sm text-center font-semibold p-3 rounded mt-3 bg-green-100 text-green-800 block";
+            
+            // Sync selected farm & refresh views
+            localStorage.setItem('farmerhub_farm_id', farm_id);
+            await populateFarmsDropdown(farm_id);
+            loadDashboardData();
+            loadManagedPlots();
+            rebuildGrid();
             
             // Reset form completely
             document.getElementById('plot-registration-form').reset();
+            document.getElementById('plot-farm-id').value = farm_id;
             document.getElementById('file-name-display').classList.add('hidden');
             document.getElementById('plot-district').disabled = true;
             document.getElementById('plot-district').innerHTML = '<option value="">Select Region first...</option>';
@@ -574,31 +622,36 @@
         }
     });
     // --- A* ROUTE PLANNER STATE & LOGIC ---
-let gridMode = 'start'; // 'start' or 'obstacle'
+let gridMode = 'start'; // 'start', 'target', or 'obstacle'
 let startNode = [0, 0];
+let targetNode = null;
 let obstacles = [];
 let plotRisks = {};
 
 function setGridMode(mode) {
     gridMode = mode;
     const startBtn = document.getElementById('mode-btn-start');
+    const targetBtn = document.getElementById('mode-btn-target');
     const obsBtn = document.getElementById('mode-btn-obstacle');
     
+    [startBtn, targetBtn, obsBtn].forEach(b => {
+        b.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1 transition';
+    });
+
     if (mode === 'start') {
-        startBtn.className = 'px-3 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5 transition';
-        obsBtn.className = 'px-3 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1.5 transition';
+        startBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 flex items-center justify-center gap-1 transition';
+    } else if (mode === 'target') {
+        targetBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-purple-500 bg-purple-50 text-purple-700 flex items-center justify-center gap-1 transition';
+        document.getElementById('use-single-target').checked = true;
     } else {
-        obsBtn.className = 'px-3 py-2 text-xs font-semibold rounded-lg border-2 border-gray-600 bg-gray-200 text-gray-800 flex items-center justify-center gap-1.5 transition';
-        startBtn.className = 'px-3 py-2 text-xs font-semibold rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 flex items-center justify-center gap-1.5 transition';
+        obsBtn.className = 'px-2 py-2 text-xs font-semibold rounded-lg border-2 border-gray-600 bg-gray-200 text-gray-800 flex items-center justify-center gap-1 transition';
     }
 }
 
 function resetGrid() {
-    // Wipe the memory of obstacles and reset start node
     startNode = [0, 0];
+    targetNode = null;
     obstacles = [];
-    
-    // Now redraw the blank grid
     rebuildGrid();
 }
 
@@ -612,6 +665,7 @@ function rebuildGrid() {
     const rows = parseInt(document.getElementById('grid-rows').value) || 5;
     const cols = parseInt(document.getElementById('grid-cols').value) || 5;
     const threshold = parseFloat(document.getElementById('risk-threshold').value) || 0.6;
+    const useTarget = document.getElementById('use-single-target').checked;
     const container = document.getElementById('farm-grid-visualizer');
     
     container.style.gridTemplateColumns = `repeat(${cols}, minmax(55px, 75px))`;
@@ -625,12 +679,16 @@ function rebuildGrid() {
             cell.onclick = () => handleCellClick(r, c);
 
             const isStart = startNode[0] === r && startNode[1] === c;
+            const isTarget = useTarget && targetNode && targetNode[0] === r && targetNode[1] === c;
             const isObstacle = obstacles.some(o => o[0] === r && o[1] === c);
             const risk = plotRisks[`${r},${c}`] || 0;
 
             if (isStart) {
                 cell.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600', 'ring-2', 'ring-blue-400');
                 cell.innerHTML = '<i class="fa-solid fa-location-dot text-base"></i><span class="text-[9px] mt-0.5">START</span>';
+            } else if (isTarget) {
+                cell.classList.add('border-purple-500', 'bg-purple-50', 'text-purple-700', 'ring-2', 'ring-purple-400');
+                cell.innerHTML = '<i class="fa-solid fa-bullseye text-base"></i><span class="text-[9px] mt-0.5">TARGET</span>';
             } else if (isObstacle) {
                 cell.classList.add('bg-gray-400', 'border-gray-500', 'text-white');
                 cell.innerHTML = '<i class="fa-solid fa-ban"></i>';
@@ -648,11 +706,17 @@ function rebuildGrid() {
 
 function handleCellClick(r, c) {
     if (gridMode === 'start') {
-        // Prevent setting start on an obstacle
         obstacles = obstacles.filter(o => !(o[0] === r && o[1] === c));
+        if (targetNode && targetNode[0] === r && targetNode[1] === c) targetNode = null;
         startNode = [r, c];
+    } else if (gridMode === 'target') {
+        if (startNode[0] === r && startNode[1] === c) return;
+        obstacles = obstacles.filter(o => !(o[0] === r && o[1] === c));
+        targetNode = (targetNode && targetNode[0] === r && targetNode[1] === c) ? null : [r, c];
+        document.getElementById('use-single-target').checked = true;
     } else if (gridMode === 'obstacle') {
-        if (startNode[0] === r && startNode[1] === c) return; // Cannot make start an obstacle
+        if (startNode[0] === r && startNode[1] === c) return;
+        if (targetNode && targetNode[0] === r && targetNode[1] === c) targetNode = null;
         const idx = obstacles.findIndex(o => o[0] === r && o[1] === c);
         if (idx > -1) {
             obstacles.splice(idx, 1);
@@ -667,14 +731,20 @@ async function runRoutePlanner() {
     const rows = parseInt(document.getElementById('grid-rows').value) || 5;
     const cols = parseInt(document.getElementById('grid-cols').value) || 5;
     const threshold = parseFloat(document.getElementById('risk-threshold').value) || 0.6;
+    const useTarget = document.getElementById('use-single-target').checked;
     const btn = document.getElementById('plan-route-btn');
     const errBox = document.getElementById('route-error');
+
+    if (useTarget && !targetNode) {
+        errBox.textContent = "Please select a Target plot on the grid or switch off 'Direct Path to Target Plot'.";
+        errBox.classList.remove('hidden');
+        return;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Optimizing Path...';
     errBox.classList.add('hidden');
 
-    // Reset old path styling before re-animating
     rebuildGrid();
 
     const payload = {
@@ -682,6 +752,7 @@ async function runRoutePlanner() {
         cols: cols,
         obstacles: obstacles,
         start: startNode,
+        target: (useTarget && targetNode) ? targetNode : null,
         risk_weights: plotRisks,
         threshold: threshold,
         plot_size_meters: 8.0,
@@ -702,12 +773,20 @@ async function runRoutePlanner() {
 
         const data = await res.json();
         
-        // Update Stats Readout
-        document.getElementById('route-stops-count').textContent = `${data.stops.length} plots`;
+        document.getElementById('route-stops-count').textContent = useTarget ? `Target (${targetNode[0]},${targetNode[1]})` : `${data.stops.length} plots`;
         document.getElementById('route-steps-count').textContent = `${data.route.length} steps`;
         document.getElementById('route-travel-time').textContent = `${data.estimated_minutes} mins`;
 
-        // Step-by-step traversal animation for the demo
+        // Render Step-by-step directions
+        const directionsCard = document.getElementById('route-directions-card');
+        const directionsList = document.getElementById('route-directions-list');
+        if (data.directions && data.directions.length > 0) {
+            directionsList.innerHTML = data.directions.map(dir => `<li class="p-1 rounded hover:bg-white transition">${dir}</li>`).join('');
+            directionsCard.classList.remove('hidden');
+        } else {
+            directionsCard.classList.add('hidden');
+        }
+
         animateRoute(data.route, data.stops);
 
     } catch (err) {
@@ -739,7 +818,72 @@ function animateRoute(route, stops) {
         }, index * 120); // 120ms delay per step for a smooth walking effect
     });
 }
-// --- DASHBOARD LIVE DATA LOGIC ---
+function getFarmId() {
+    const selectEl = document.getElementById('top-farm-select');
+    if (selectEl && selectEl.value && selectEl.value !== '__new__') {
+        return selectEl.value;
+    }
+    return localStorage.getItem('farmerhub_farm_id') || 'default_farm';
+}
+
+async function populateFarmsDropdown(activeFarm = null) {
+    const topSelect = document.getElementById('top-farm-select');
+    const filterSelect = document.getElementById('managed-farm-filter');
+    const currentFarm = activeFarm || getFarmId();
+
+    try {
+        const res = await fetch(`${API_BASE}/farms`);
+        const data = await res.json();
+        const farms = data.farms && data.farms.length > 0 ? [...data.farms] : ['default_farm'];
+        if (!farms.includes(currentFarm) && currentFarm && currentFarm !== 'all') {
+            farms.push(currentFarm);
+        }
+
+        if (topSelect) {
+            topSelect.innerHTML = farms.map(f => `<option value="${f}">${f}</option>`).join('') +
+                '<option value="__new__">+ New Farm ID...</option>';
+            topSelect.value = currentFarm;
+        }
+
+        if (filterSelect) {
+            const savedFilter = filterSelect.value || 'all';
+            filterSelect.innerHTML = '<option value="all">🌐 All Farms</option>' +
+                farms.map(f => `<option value="${f}">${f}</option>`).join('');
+            if (farms.includes(savedFilter) || savedFilter === 'all') {
+                filterSelect.value = savedFilter;
+            }
+        }
+    } catch (err) {
+        console.error("Error populating farms:", err);
+    }
+}
+
+async function onFarmSelectChange() {
+    const selectEl = document.getElementById('top-farm-select');
+    const val = selectEl.value;
+
+    if (val === '__new__') {
+        const newId = prompt("Enter new Farm ID name (e.g. 'north_farm', 'estate_field'):");
+        if (newId && newId.trim()) {
+            const cleanId = newId.trim().toLowerCase().replace(/\s+/g, '_');
+            localStorage.setItem('farmerhub_farm_id', cleanId);
+            await populateFarmsDropdown(cleanId);
+            const farmInput = document.getElementById('plot-farm-id');
+            if (farmInput) farmInput.value = cleanId;
+            loadDashboardData();
+            loadManagedPlots();
+        } else {
+            selectEl.value = getFarmId();
+        }
+        return;
+    }
+
+    localStorage.setItem('farmerhub_farm_id', val);
+    const farmInput = document.getElementById('plot-farm-id');
+    if (farmInput) farmInput.value = val;
+    loadDashboardData();
+    loadManagedPlots();
+}
 
 async function loadDashboardData() {
     const healthScoreEl = document.getElementById('farm-health-score');
@@ -749,8 +893,8 @@ async function loadDashboardData() {
     const plotsContainer = document.getElementById('dashboard-plots-container');
 
     try {
-        // Fetch aggregated farm health data
-        const response = await fetch(`${API_BASE}/farm-health`);
+        const farmId = getFarmId();
+        const response = await fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`);
         
         if (!response.ok) {
             const err = await response.json();
@@ -830,14 +974,20 @@ async function loadDashboardData() {
 
             // Calculate health percentage (inverse of urgency)
             const healthPct = Math.max(0, Math.round((1 - plot.urgency) * 100));
+            const [plotR, plotC] = coords.split(',').map(n => n.trim());
 
             plotsContainer.innerHTML += `
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition">
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition relative group">
                     <div class="flex justify-between items-start mb-3">
                         <div>
                             <h4 class="font-bold text-gray-800">Plot (${coords})</h4>
                         </div>
-                        <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
+                            <button onclick="deletePlot('${farmId}', ${plotR}, ${plotC})" title="Delete Plot" class="text-gray-300 hover:text-red-600 transition p-0.5 text-xs">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
                         <div class="flex justify-between">
@@ -883,11 +1033,89 @@ async function loadDashboardData() {
         healthScoreEl.textContent = "--";
     }
 }
+// Helper for deleting a plot
+async function deletePlot(farmId, row, col) {
+    if (!confirm(`Delete Plot (${row}, ${col}) from Farm '${farmId}'?`)) return;
+    try {
+        const res = await fetch(`${API_BASE}/plots/${encodeURIComponent(farmId)}/${row}/${col}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Failed to delete plot");
+        }
+        loadDashboardData();
+        loadManagedPlots();
+        rebuildGrid();
+    } catch (err) {
+        alert("Error deleting plot: " + err.message);
+    }
+}
+
+async function loadManagedPlots() {
+    const container = document.getElementById('managed-plots-container');
+    if (!container) return;
+    const filterSelect = document.getElementById('managed-farm-filter');
+    const filterVal = filterSelect?.value || 'all';
+
+    container.innerHTML = `<p class="text-xs text-gray-400 italic col-span-full py-4 text-center"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading plots...</p>`;
+
+    try {
+        const url = filterVal === 'all' ? `${API_BASE}/plots` : `${API_BASE}/plots?farm_id=${encodeURIComponent(filterVal)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch plots");
+        const data = await res.json();
+
+        if (!data.plots || data.plots.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full p-6 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                    <i class="fa-solid fa-seedling text-2xl text-gray-300 mb-2 block"></i>
+                    <p class="text-xs text-gray-500 font-semibold mb-2">No registered plots found ${filterVal === 'all' ? 'across any farm' : `for farm '${filterVal}'`}.</p>
+                    <button type="button" onclick="document.getElementById('plot-row').focus()" class="text-xs text-brand-dark font-bold underline">
+                        Register a plot below &darr;
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = data.plots.map(p => `
+            <div class="bg-gray-50 hover:bg-white p-3.5 rounded-xl border border-gray-200 transition shadow-sm flex flex-col justify-between hover:shadow-md">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-brand-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-house-chimney text-[8px]"></i> ${p.farm_id}
+                        </span>
+                        <span class="bg-brand-light bg-opacity-30 text-brand-dark text-xs font-extrabold px-2 py-0.5 rounded">${p.crop}</span>
+                    </div>
+                    <div class="font-bold text-gray-800 text-sm">Plot (${p.row}, ${p.col})</div>
+                    <div class="text-xs text-gray-500 mt-0.5">${p.district}, ${p.region}</div>
+                    ${p.photo_path ? `<div class="mt-2 text-[11px] text-blue-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-image"></i> Photo attached</div>` : ''}
+                </div>
+                <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
+                    <span class="text-gray-400 text-[10px]">${p.soil_ph ? 'pH ' + p.soil_ph : ''}</span>
+                    <button onclick="deletePlot('${p.farm_id}', ${p.row}, ${p.col})" class="text-red-500 hover:text-red-700 font-semibold text-xs flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition">
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = `<p class="text-xs text-red-500 col-span-full py-4 text-center">Error loading plots: ${err.message}</p>`;
+    }
+}
+
 // Initial grid render on page load
-// Update the existing DOMContentLoaded listener
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    // Restore saved farm ID and populate dropdowns
+    const savedFarm = localStorage.getItem('farmerhub_farm_id') || 'default_farm';
+    await populateFarmsDropdown(savedFarm);
+    const plotFarm = document.getElementById('plot-farm-id');
+    if (plotFarm) plotFarm.value = savedFarm;
+
     rebuildGrid();
     loadDashboardData(); 
+    loadManagedPlots();
     updateTopWeather(); // Load top nav weather
 });
 
@@ -927,6 +1155,9 @@ function switchTab(tabId) {
     // Refresh data if switching back to dashboard
     if (tabId === 'dashboard') {
         loadDashboardData();
+    }
+    if (tabId === 'my-farm') {
+        loadManagedPlots();
     }
     // Refresh A* grid if switching to route planner (ensures updated risk weights are applied)
     if (tabId === 'route-planner') {

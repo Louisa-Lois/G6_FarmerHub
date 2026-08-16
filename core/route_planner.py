@@ -90,6 +90,19 @@ def plan_route(grid, start, priority_plots, risk_weights):
     return {"route": full_path, "stops": stop_order}
 
 
+def plan_single_route(grid, start, target, risk_weights):
+    """
+    Direct A* navigation from start to a single specific target plot.
+
+    Returns: dict with 'route' (list of (row, col) waypoints) and 'stops' ([target] if reached).
+    """
+    path, cost = astar(grid, start, target, risk_weights)
+    if path is None:
+        return {"route": [start], "stops": []}
+    return {"route": path, "stops": [target]}
+
+
+
 # ---------------------------------------------------------------------
 # 3. Travel time estimation
 # ---------------------------------------------------------------------
@@ -107,6 +120,45 @@ def estimate_travel_time(route, plot_size_meters, walking_speed_m_per_min):
         return 0.0
     distance_meters = steps * plot_size_meters
     return distance_meters / walking_speed_m_per_min
+
+
+def generate_step_directions(route, plot_size_meters=8.0):
+    """
+    Converts a sequence of (row, col) coordinates into step-by-step
+    cardinal walking instructions (e.g. 'Walk 8m North to Plot (1, 2)').
+    """
+    if not route or len(route) <= 1:
+        return []
+
+    directions = []
+    for i in range(len(route) - 1):
+        r1, c1 = route[i]
+        r2, c2 = route[i + 1]
+        dr, dc = r2 - r1, c2 - c1
+
+        if dr == -1 and dc == 0:
+            cardinal = "North"
+        elif dr == 1 and dc == 0:
+            cardinal = "South"
+        elif dr == 0 and dc == 1:
+            cardinal = "East"
+        elif dr == 0 and dc == -1:
+            cardinal = "West"
+        elif dr < 0 and dc > 0:
+            cardinal = "Northeast"
+        elif dr < 0 and dc < 0:
+            cardinal = "Northwest"
+        elif dr > 0 and dc > 0:
+            cardinal = "Southeast"
+        elif dr > 0 and dc < 0:
+            cardinal = "Southwest"
+        else:
+            cardinal = "to"
+
+        directions.append(
+            f"Step {i + 1}: Walk {plot_size_meters:.0f}m {cardinal} to ({r2}, {c2})"
+        )
+    return directions
 
 
 # ---------------------------------------------------------------------

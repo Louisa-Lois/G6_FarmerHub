@@ -27,7 +27,13 @@ load_dotenv()
 
 from core.yield_model import predict_yield
 from core.yield_service import YieldService
-from core.route_planner import yield_to_risk, plan_route, estimate_travel_time
+from core.route_planner import (
+    yield_to_risk,
+    plan_route,
+    plan_single_route,
+    estimate_travel_time,
+    generate_step_directions,
+)
 from core.grid_builder import build_grid
 from core.weather import get_weather_advice
 from core.plot_registry import (
@@ -37,6 +43,9 @@ from core.plot_registry import (
     get_plot_photos,
     get_available_districts,
     get_available_crops,
+    get_available_farms,
+    list_plots,
+    delete_plot,
 )
 from core.yield_connector import get_yield_risk_map
 from core.disease_connector import get_disease_risk_map
@@ -46,6 +55,7 @@ PHOTO_UPLOAD_DIR = "uploaded_plot_photos"
 os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="FarmerHub AI Backend", version="0.1.0")
+app.mount("/uploaded_plot_photos", StaticFiles(directory=PHOTO_UPLOAD_DIR), name="photos")
 
 
 # ---------------------------------------------------------------------
@@ -248,6 +258,9 @@ class RouteRequest(BaseModel):
     risk_weights: dict[str, float] = Field(
         ..., description='Keys as "row,col" strings, e.g. {"3,4": 0.82}'
     )
+    target: list[int] | None = Field(
+        default=None, description="Optional [row, col] for single-target direct A* navigation"
+    )
     threshold: float = 0.6
     plot_size_meters: float = 8.0
     walking_speed_m_per_min: float = 60.0
@@ -264,6 +277,7 @@ class RouteResponse(BaseModel):
     stops: list[list[int]]
     route: list[list[int]]
     estimated_minutes: float
+    directions: list[str] = Field(default_factory=list)
 
 
 @app.post("/plan-route", response_model=RouteResponse)
@@ -304,19 +318,40 @@ def plan_route_endpoint(req: RouteRequest):
             )
         risk_weights[(r, c)] = val
 
-    priority_plots = [
-        p for p, r in risk_weights.items() if r >= req.threshold and grid.get(p, False)
-    ]
+    if req.target:
+        if len(req.target) != 2:
+            raise HTTPException(
+                status_code=400, detail=f"'target' must be [row, col], got {req.target}"
+            )
+        target = tuple(req.target)
+        if not (0 <= target[0] < req.rows and 0 <= target[1] < req.cols):
+            raise HTTPException(
+                status_code=400,
+                detail=f"'target' {list(target)} is outside the {req.rows}x{req.cols} grid",
+            )
+        if not grid.get(target, False):
+            raise HTTPException(
+                status_code=400, detail=f"'target' {list(target)} is on an obstacle"
+            )
+        result = plan_single_route(grid, start, target, risk_weights)
+    else:
+        priority_plots = [
+            p for p, r in risk_weights.items() if r >= req.threshold and grid.get(p, False)
+        ]
+        result = plan_route(grid, start, priority_plots, risk_weights)
 
-    result = plan_route(grid, start, priority_plots, risk_weights)
     minutes = estimate_travel_time(
         result["route"], req.plot_size_meters, req.walking_speed_m_per_min
+    )
+    directions = generate_step_directions(
+        result["route"], plot_size_meters=req.plot_size_meters
     )
 
     return RouteResponse(
         stops=[list(p) for p in result["stops"]],
         route=[list(p) for p in result["route"]],
         estimated_minutes=round(minutes, 1),
+        directions=directions,
     )
 
 
@@ -371,6 +406,7 @@ class PlotRegistrationRequest(BaseModel):
     region: str = Field(..., examples=["ASHANTI"])
     district: str = Field(..., examples=["AMANSIE WEST"])
     crop: str = Field(..., examples=["MAIZE"])
+    farm_id: str = Field(default="default_farm", examples=["default_farm", "north_farm"])
     overrides: dict[str, float] | None = Field(
         default=None,
         description="Optional real soil-test values to override district "
@@ -394,6 +430,7 @@ def register_plot_endpoint(req: PlotRegistrationRequest):
             district=req.district,
             crop=req.crop,
             overrides=req.overrides,
+            farm_id=req.farm_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -421,19 +458,21 @@ def list_crops(region: str, district: str):
 
 
 @app.post("/upload-plot-photo")
-async def upload_plot_photo_endpoint(row: int, col: int, file: UploadFile = File(...)):
+async def upload_plot_photo_endpoint(
+    row: int, col: int, farm_id: str = "default_farm", file: UploadFile = File(...)
+):
     contents = await file.read()
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    photo_path = os.path.join(PHOTO_UPLOAD_DIR, f"{row}_{col}.{ext}")
+    photo_path = os.path.join(PHOTO_UPLOAD_DIR, f"{farm_id}_{row}_{col}.{ext}")
     with open(photo_path, "wb") as f:
         f.write(contents)
 
     try:
-        attach_photo(row, col, photo_path)
+        attach_photo(row, col, photo_path, farm_id=farm_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"row": row, "col": col, "photo_path": photo_path}
+    return {"farm_id": farm_id, "row": row, "col": col, "photo_path": photo_path}
 
 
 # ---------------------------------------------------------------------
@@ -469,17 +508,19 @@ class FarmHealthResponse(BaseModel):
 
 
 @app.get("/farm-health", response_model=FarmHealthResponse)
-def farm_health_endpoint(region: str | None = None, town: str | None = None):
-    plots_data = get_plots_data()
+def farm_health_endpoint(
+    farm_id: str = "default_farm", region: str | None = None, town: str | None = None
+):
+    plots_data = get_plots_data(farm_id=farm_id)
     if not plots_data:
         raise HTTPException(
             status_code=400,
-            detail="No plots registered yet -- register at least one plot first.",
+            detail=f"No plots registered yet for farm '{farm_id}' -- register at least one plot first.",
         )
 
     yield_risk_map = get_yield_risk_map(plots_data, YIELD_MODEL, NATIONAL_AVG)
 
-    plot_photos = get_plot_photos()
+    plot_photos = get_plot_photos(farm_id=farm_id)
     disease_risk_map = (
         get_disease_risk_map(
             plot_photos, DISEASE_MODEL, CLASS_NAMES, img_size=DISEASE_IMG_SIZE
@@ -504,6 +545,26 @@ def farm_health_endpoint(region: str | None = None, town: str | None = None):
     result["plots"] = {f"{r},{c}": v for (r, c), v in result["plots"].items()}
 
     return FarmHealthResponse(**result)
+
+
+@app.get("/plots")
+def get_plots_endpoint(farm_id: str | None = None):
+    """Returns all registered plots with full soil/crop metadata and photo status.
+    If farm_id is None or 'all', returns all plots across all farms."""
+    return {"farm_id": farm_id or "all", "plots": list_plots(farm_id=farm_id)}
+
+
+@app.delete("/plots/{farm_id}/{row}/{col}")
+def delete_plot_endpoint(farm_id: str, row: int, col: int):
+    """Deletes a registered plot and any associated photo."""
+    delete_plot(row=row, col=col, farm_id=farm_id)
+    return {"status": "deleted", "farm_id": farm_id, "row": row, "col": col}
+
+
+@app.get("/farms")
+def list_farms():
+    """Returns a list of all registered farm IDs."""
+    return {"farms": get_available_farms()}
 
 
 # ---------------------------------------------------------------------
