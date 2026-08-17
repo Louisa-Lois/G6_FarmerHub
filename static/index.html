@@ -1132,7 +1132,32 @@ async function updateTopWeather() {
         });
         if (!res.ok) throw new Error("Failed to fetch weather");
         const data = await res.json();
+        
+        // 1. Update Top Widget
         textEl.textContent = `${data.temp}°C | ${data.rain_amount_mm}mm Rain`;
+        
+        // 2. Update the Big Dashboard Weather Card
+        document.getElementById('card-humidity').textContent = `${data.humidity}%`;
+        document.getElementById('card-wind').textContent = `${data.wind_speed}m/s`;
+        document.getElementById('card-temp').textContent = `${data.temp}°C`;
+        
+        const weatherBadge = document.getElementById('weather-badge');
+        const weatherMessage = document.getElementById('weather-message');
+        
+        if (data.rain_expected_48h) {
+            weatherBadge.textContent = "Rain Expected";
+            weatherBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        } else if (data.irrigation_alert) {
+            weatherBadge.textContent = "Irrigation Alert";
+            weatherBadge.className = "bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        } else {
+            weatherBadge.textContent = "Clear Skies";
+            weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+        }
+        
+        weatherMessage.textContent = data.planting_message || 
+            (data.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
+
     } catch (err) {
         textEl.textContent = "Offline (Fallback)";
     }

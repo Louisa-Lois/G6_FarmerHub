@@ -25,7 +25,18 @@ The system is designed for easy reproduction. The Vanilla JS/Tailwind frontend i
 git clone [https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git](https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git)
 cd Group-6-Final-Project-FarmerHub
 
-### 2. Create and Activate a Virtual Environment
+2. ⚠️ IMPORTANT: Download the Full CNN Model
+Because the CNN model is very large (174 MB), your initial git clone command might only download a 1 KB compressed placeholder file. To ensure the disease detection module works, you must manually pull the full file:
+
+Go to this project's GitHub repository in your web browser.
+
+Navigate to the models/ folder and click on farmerhub_disease_model.keras.
+
+Click the Download (or Download Raw) button to download the full 174 MB file to your machine.
+
+Move this downloaded file into your local Group-6-Final-Project-FarmerHub/models/ folder, replacing the 1 KB version that was pulled initially.
+
+### 3. Create and Activate a Virtual Environment
 
 On Mac/Linux:
 
@@ -37,17 +48,21 @@ On Windows:
 Bash
 python -m venv venv
 venv\Scripts\activate
-3. Install Dependencies
+
+4. Install Dependencies
+
 Bash
 Make sure the python version is 3.11 -3.13 in order for tensorflow cpu to run.
 pip install -r requirements.txt
-4. Configure the Environment
+
+5. Configure the Environment
+
 The Weather Decision Support module requires an OpenWeatherMap API key.
 
 Copy the provided example file:
 
 Bash
-cp .env.example .env
+copy .env.example .env
 Open the .env file and replace the placeholder with your actual API key:
 
 Code snippet

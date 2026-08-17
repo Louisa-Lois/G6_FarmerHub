@@ -227,6 +227,7 @@ def get_weather_advice(region, town=None, api_key=None):
         location_name = forecast_data.get("city", {}).get("name", town or region)
 
     except Exception as e:
+        print(f"WEATHER API ERROR: {e}")
         # Failsafe if API key is missing, invalid, or network is blocked
         location_name = town or region
         rain_soon = False
