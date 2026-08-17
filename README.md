@@ -45,7 +45,7 @@ health score — all in one interface.
 
 ### 1. Prerequisites
 
-- **Python 3.11+**
+- **Python 3.11**
 - **Git LFS** — required. The trained CNN is ~174 MB and is stored via Git Large
   File Storage. Without LFS you will clone a 130-byte pointer file instead of the
   model, and the server will fail on startup.
@@ -61,8 +61,8 @@ Windows: bundled with Git for Windows.
 ### 2. Clone
 
 ```bash
-git clone https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git
-cd Group-6-Final-Project-FarmerHub
+git clone https://github.com/Louisa-Lois/G6_FarmerHub.git
+cd G6_FarmerHub
 git lfs pull        # fetches the CNN model
 ```
 
@@ -86,7 +86,7 @@ Weather advice uses the OpenWeatherMap free tier. Get a key at
 [openweathermap.org/api](https://openweathermap.org/api), then:
 
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 
 Edit `.env` and insert your own key:
