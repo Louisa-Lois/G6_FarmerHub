@@ -22,7 +22,7 @@ The system is designed for easy reproduction. The Vanilla JS/Tailwind frontend i
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git](https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git)
+git clone [https://github.com/Louisa-Lois/G6_FarmerHub.git](https://github.com/Louisa-Lois/G6_FarmerHub.git)
 cd Group-6-Final-Project-FarmerHub
 
 2. ⚠️ IMPORTANT: Download the Full CNN Model
