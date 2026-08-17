@@ -39,6 +39,7 @@ python -m venv venv
 venv\Scripts\activate
 3. Install Dependencies
 Bash
+Make sure the python version is 3.11 -3.13 in order for tensorflow cpu to run.
 pip install -r requirements.txt
 4. Configure the Environment
 The Weather Decision Support module requires an OpenWeatherMap API key.
@@ -50,7 +51,7 @@ cp .env.example .env
 Open the .env file and replace the placeholder with your actual API key:
 
 Code snippet
-OWM_API_KEY=your_actual_api_key_here
+OWM_API_KEY=adb1ae791d08bce3d85a2824c736cecc
 💻 How to Run the System
 With your virtual environment activated, start the FastAPI server:
 
