@@ -227,10 +227,6 @@ venv/
 env/
 ENV/
 
-# Large Model Weights (exceeding GitHub 100MB limit)
-*.keras
-models/*.keras
-
 # Uploaded test photos & SQLite databases
 uploaded_plot_photos/
 *.db
