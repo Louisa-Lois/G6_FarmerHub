@@ -1,151 +1,305 @@
-# FarmerHub AI 🌱
+# FarmerHub AI
 
-**CS 254 — Introduction to Artificial Intelligence (Final Project)**
-**Team Members:** Louisa-Lois Adjoka, Daniel Ekpale, Chrishelle Wiafe, Kwasi Bekae Ackonor
+An intelligent decision-support system for smallholder farmers in Ghana.
 
-## 🚀 Project Overview
+FarmerHub combines three AI techniques behind a single dashboard: a **Random
+Forest** regressor that predicts crop yield, a **convolutional neural network**
+that detects disease from a leaf photograph, and **A\* search** that plans farm
+inspection routes prioritising the plots most at risk. Live weather forecasting
+turns those outputs into timed, actionable alerts.
 
-FarmerHub AI is an intelligent decision-support system designed to help smallholder farmers in Ghana optimize their daily operations. By consolidating multiple AI techniques into a single, accessible dashboard, the system monitors farm conditions, predicts risks, and generates actionable, weather-aware recommendations.
-
-**Core AI Modules Implemented:**
-1. **Yield Prediction (Supervised ML - Random Forest):** Predicts crop yield in tonnes/hectare based on district-level soil chemistry, historical rainfall, and crop type.
-2. **Disease Detection (Computer Vision - CNN):** Analyzes uploaded leaf photos to classify diseases across 38 distinct categories and assigns a severity risk score.
-3. **Route Optimization (Search - A* Algorithm):** Calculates the most efficient physical inspection route across a farm grid. It utilizes a risk-weighted heuristic to mathematically prioritize detours through diseased or low-yielding plots.
-
-These modules feed into the **Farm Health Dashboard**, which overlays live weather forecasting to deliver urgency alerts (e.g., advising a farmer to delay chemical spraying if heavy rain is imminent).
+**CS 254 — Introduction to Artificial Intelligence · Team 6 · Ashesi University**
 
 ---
 
-## ⚙️ Setup & Installation
+## Contents
 
-The system is designed for easy reproduction. The Vanilla JS/Tailwind frontend is served directly by the FastAPI backend, meaning **no separate Node.js or npm setup is required**.
+- [Why this exists](#why-this-exists)
+- [Setup](#setup)
+- [Running the system](#running-the-system)
+- [Usage example](#usage-example)
+- [How it works](#how-it-works)
+- [Results](#results)
+- [Repository structure](#repository-structure)
+- [Tests](#tests)
+- [Known limitations](#known-limitations)
+- [Team](#team)
 
-### 1. Clone the Repository
+---
+
+## Why this exists
+
+A smallholder farmer decides daily when to spray, when to irrigate, and which
+part of their land to walk. Today that means a weather app, a separate disease
+app, and personal experience — with nothing connecting them. Spraying the day
+before heavy rain wastes the chemical and the trip; an outbreak on an
+uninspected plot spreads before anyone sees it.
+
+FarmerHub connects those signals. A single leaf photograph raises one plot's
+risk score, which reroutes the day's inspection walk and moves the farm-wide
+health score — all in one interface.
+
+---
+
+## Setup
+
+### 1. Prerequisites
+
+- **Python 3.11+**
+- **Git LFS** — required. The trained CNN is ~174 MB and is stored via Git Large
+  File Storage. Without LFS you will clone a 130-byte pointer file instead of the
+  model, and the server will fail on startup.
+
 ```bash
-git clone [https://github.com/Louisa-Lois/G6_FarmerHub.git](https://github.com/Louisa-Lois/G6_FarmerHub.git)
+# Install Git LFS first (once per machine)
+git lfs install
+```
+
+macOS: `brew install git-lfs` · Ubuntu: `sudo apt install git-lfs` ·
+Windows: bundled with Git for Windows.
+
+### 2. Clone
+
+```bash
+git clone https://github.com/Louisa-Lois/Group-6-Final-Project-FarmerHub.git
 cd Group-6-Final-Project-FarmerHub
+git lfs pull        # fetches the CNN model
+```
 
-2. ⚠️ IMPORTANT: Download the Full CNN Model
-Because the CNN model is very large (174 MB), your initial git clone command might only download a 1 KB compressed placeholder file. To ensure the disease detection module works, you must manually pull the full file:
+Verify the model downloaded properly — it should be ~174 MB, not ~130 bytes:
 
-Go to this project's GitHub repository in your web browser.
+```bash
+ls -lh models/farmerhub_disease_model.keras
+```
 
-Navigate to the models/ folder and click on farmerhub_disease_model.keras.
+### 3. Virtual environment
 
-Click the Download (or Download Raw) button to download the full 174 MB file to your machine.
-
-Move this downloaded file into your local Group-6-Final-Project-FarmerHub/models/ folder, replacing the 1 KB version that was pulled initially.
-
-### 3. Create and Activate a Virtual Environment
-
-On Mac/Linux:
-
-Bash
-python3 -m venv venv
-source venv/bin/activate
-On Windows:
-
-Bash
+```bash
 python -m venv venv
-venv\Scripts\activate
-
-4. Install Dependencies
-
-Bash
-Make sure the python version is 3.11 -3.13 in order for tensorflow cpu to run.
+source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-5. Configure the Environment
+### 4. Weather API key
 
-The Weather Decision Support module requires an OpenWeatherMap API key.
+Weather advice uses the OpenWeatherMap free tier. Get a key at
+[openweathermap.org/api](https://openweathermap.org/api), then:
 
-Copy the provided example file:
+```bash
+cp .env.example .env
+```
 
-Bash
-copy .env.example .env
-Open the .env file and replace the placeholder with your actual API key:
+Edit `.env` and insert your own key:
 
-Code snippet
-OWM_API_KEY=adb1ae791d08bce3d85a2824c736cecc
-💻 How to Run the System
-With your virtual environment activated, start the FastAPI server:
+```
+OWM_API_KEY=your_api_key_here
+```
 
-Bash
+Everything except the weather module works without a key; weather endpoints fail
+safe, returning the more cautious recommendation rather than no alert.
+
+---
+
+## Running the system
+
+```bash
 uvicorn main:app --reload
-Note: The server takes approximately 10-15 seconds to boot as it loads the Scikit-Learn Random Forest and TensorFlow CNN models into memory.
+```
 
-Once you see Application startup complete, open your web browser and navigate to:
-👉 http://127.0.0.1:8000
+Loading the scikit-learn and TensorFlow models takes roughly 10–15 seconds on
+first boot. Then open:
 
-(Interactive API documentation is also available at http://127.0.0.1:8000/docs)
+- **http://127.0.0.1:8000** — the FarmerHub dashboard
+- **http://127.0.0.1:8000/docs** — interactive API documentation, where every
+  endpoint can be exercised without the frontend
 
-🔍 Short Usage Example (Grader Walkthrough)
-To see the AI modules interacting, follow this short "happy path" demo in the UI:
+---
 
-Register a Farm Plot (Yield Model):
+## Usage example
 
-Click the "My Farm" tab.
+**1. Register a plot.** In the *My Farm* tab, register a plot at grid
+coordinates (0, 0) — Region: Ashanti, District: Amansie West, Crop: Maize.
 
-Set coordinates to Row 0, Column 0.
+Only region, district and crop are requested. Soil chemistry and rainfall are
+filled in automatically from reference tables, since a smallholder cannot be
+expected to know their soil's cation exchange capacity. Any value can still be
+overridden with a real soil test.
 
-Select Region: ASHANTI, District: AMANSIE WEST, Crop: MAIZE.
+**2. Scan for disease.** In *Quick Scan*, upload a maize leaf photograph. The CNN
+classifies it across 38 categories and converts the result into a risk score for
+that plot.
 
-Click Register Plot. The backend will automatically look up the soil chemistry for this district and generate a baseline yield risk score.
+**3. Plan a route.** In *Route Planner*, A\* generates a walking path from the
+farm gate that routes *through* high-risk plots rather than around them.
 
-Diagnose a Crop (CNN Model):
+**4. Check farm health.** The dashboard shows a Farm Health Score out of 100,
+adjusted by the live weather forecast — for example, adding urgency when a
+diseased plot faces rain within 48 hours.
 
-Click the "Quick Scan" tab.
+The same prediction via the API:
 
-Upload an image of a diseased crop leaf (e.g., a Tomato Early Blight leaf).
+```bash
+curl -X POST http://127.0.0.1:8000/predict-yield \
+  -H "Content-Type: application/json" \
+  -d '{"region": "ASHANTI", "crop": "MAIZE"}'
+```
 
-Click Analyze Image. The CNN will return the disease class, confidence percentage, and an elevated risk score.
+```json
+{
+  "predicted_yield_mt_ha": 4.19,
+  "range_low_mt_ha": 3.73,
+  "range_high_mt_ha": 4.64,
+  "national_average_mt_ha": 2.60,
+  "confidence": "indicative",
+  "basis": "regional averages, not farm-specific measurements"
+}
+```
 
-Optimize Inspection Route (A Search):*
+---
 
-Click the "Route Planner" tab.
+## How it works
 
-Use the "Obstacle" click mode to place a few gray walls on the grid (simulating sheds or fences).
+The three models never communicate directly. Each one's output passes through a
+connector that normalises it to a **shared risk score between 0.0 and 1.0**, so a
+regressor reporting tonnes per hectare and a classifier reporting class
+probabilities become comparable.
 
-Click Plan Optimal Route. The algorithm will animate the shortest walkable path that actively detours to visit the high-risk plots identified in Steps 1 and 2.
+That shared risk map then drives two consumers:
 
-Review Farm Health (Dashboard Aggregation):
+- **`farm_health_dashboard.py`** blends yield risk and disease risk equally, adds
+  a weather modifier (+0.15 for a spray-before-rain window, +0.10 for a dry
+  spell), and computes `(1 − average urgency) × 100`.
+- **`astar_route.py`** discounts the traversal cost of high-risk plots, so the
+  mathematically cheapest path is also the most useful inspection route.
 
-Click the "Dashboard" tab.
+Because A\* uses a non-standard cost function here, the classical admissibility
+guarantee could not simply be assumed — it is verified against a Dijkstra
+baseline in the test suite.
 
-View the unified Farm Health Score, which has been mathematically adjusted based on the AI risk scores and the live OpenWeatherMap forecast alerts.
+### API endpoints
 
-🧪 Running the Tests
-To verify the logic and mathematical admissibility of the algorithms, run the included Pytest suite:
+15 endpoints, browsable at `/docs`:
 
-Bash
-python -m pytest tests/ -v
-This suite includes:
+| Endpoint | Purpose |
+|---|---|
+| `POST /predict-yield` | Yield prediction from region and crop |
+| `POST /predict-yield-estimate` | Yield estimate with explicit overrides |
+| `POST /detect-disease` | Leaf image classification |
+| `POST /plan-route` | A\* inspection route |
+| `POST /weather-advice` | Forecast-driven alerts |
+| `POST /register-plot` | Register a plot to a farm |
+| `POST /upload-plot-photo` | Attach a scan to a registered plot |
+| `GET /farm-health` | Aggregated Farm Health Score |
+| `GET /plots`, `GET /farms` | Registry queries |
+| `DELETE /plots/{farm_id}/{row}/{col}` | Remove a plot |
+| `GET /districts/{region}`, `GET /crops/{region}/{district}` | Dropdown options |
+| `GET /yield-options` | Valid regions and crops |
+| `GET /health` | Service health check |
 
-test_astar.py: Adversarial testing confirming the A* heuristic is admissible and matches a ground-truth Dijkstra implementation.
+---
 
-test_yield_service.py: Validates the feature engineering pipeline.
+## Results
 
-test_plot_registry_and_farm_health.py: Ensures end-to-end data formatting between the database, models, and the dashboard aggregator.
+| Module | Metric | Result | Compared against |
+|---|---|---|---|
+| Yield (Random Forest) | MAE / RMSE / MAPE | 1.101 / 2.139 / 10.86% | Crop-mean lookup: 1.050 / 1.999 / 12.40% |
+| Disease (CNN) | Accuracy / weighted F1 | 88% / 0.88 | Chance across 38 classes ≈ 2.6% |
+| Route (A\*) | Path cost vs optimal | Exact match (1e-9 tolerance) | Dijkstra, optimal by construction |
+| Weather | Scenario tests | 8 / 8 pass | Live OpenWeatherMap forecast |
+| System | Automated tests | 22 / 22 pass | — |
 
-## 📂 Repository Structure
+**On the yield result.** The Random Forest is marginally *worse* than a crop-mean
+lookup on absolute error and better on proportional error, winning on 6 of 11
+crops. MAE is dominated by high-tonnage crops — a 4 Mt/Ha miss on cassava (mean
+35) outweighs a 0.25 miss on millet (mean 2.4), though the latter is
+proportionally worse. With 323 training rows this is the ceiling the data
+supports; hyperparameter tuning across 96 configurations moved error by about 1%.
 
-* `main.py` — The core FastAPI application, endpoints, and static file server.
-* `requirements.txt` — The pinned environment dependencies required to run the project.
-* `README.md` — The master project documentation and grader setup guide.
-* `PROJECT_LOG.md` — Running record of the team's data cleaning decisions, dead ends, and model evaluation history.
-* `.env.example` — Template for the environment variables (e.g., OpenWeatherMap API key).
-* `.gitignore` / `.gitattributes` — Git configurations, including LFS tracking for large model files.
+**On evaluation method.** The same district-crop appears in all three years of
+the yield data, so a random train/test split leaks near-identical rows across the
+divide and reported MAE 0.985. Grouped cross-validation, keeping each
+district-crop whole, reported 1.298 — 24% worse, and the honest figure. Every
+number above uses the grouped split.
 
-**Directories:**
-* `core/` — Contains the application logic and algorithms:
-  * `astar_route.py`, `grid_builder.py`, `route_planner.py` (A* Search module).
-  * `yield_model.py`, `yield_service.py`, `yield_connector.py` (Random Forest module).
-  * `disease_connector.py` (CNN module adapter).
-  * `weather.py` (OpenWeatherMap API integration).
-  * `farm_health_dashboard.py` (Dashboard score aggregator).
-  * `plot_registry.py` (In-memory farm database and default mappings).
-* `tests/` — The Pytest suite evaluating A* mathematical admissibility, yield data engineering, and end-to-end dashboard integration.
-* `models/` — The trained `.keras` (CNN) model, `.joblib` (Random Forest) model, and `class_names.json`.
-* `data/` — The cleaned training datasets (`farmerhub_yield_training_data_clean.csv`) and feature importance logs used to establish baselines.
-* `static/` — The HTML, CSS, and JS files comprising the frontend interface (`index.html`).
-* `notebooks/` — Jupyter notebooks documenting our data cleaning, feature engineering, model training, and weather geocoding tests.
+Full methodology, rejected data sources and development decisions are recorded in
+[`PROJECT_LOG.md`](PROJECT_LOG.md).
+
+---
+
+## Repository structure
+
+```
+main.py                     FastAPI application; 15 endpoints; serves the frontend
+core/
+  plot_registry.py          SQLite-backed farm database and district defaults
+  yield_model.py            Random Forest training and evaluation logic
+  yield_service.py          Region/crop lookup wrapper over the trained model
+  yield_connector.py        Yield output → 0.0–1.0 risk score
+  disease_connector.py      CNN output → 0.0–1.0 risk score
+  weather.py                OpenWeatherMap integration and alert generation
+  farm_health_dashboard.py  Risk + weather → Farm Health Score
+  grid_builder.py           Builds the plot grid from the registry
+  astar_route.py            A* search with risk-discounted costs
+  route_planner.py          Multi-stop, time-estimated inspection routes
+static/index.html           Dashboard UI (vanilla JS, Tailwind CSS)
+models/                     Trained .keras and .joblib artefacts, class names
+data/                       Cleaned training datasets, plot database
+notebooks/                  Training and evaluation notebooks for both models
+tests/                      Pytest suite (22 tests)
+```
+
+`disease_connector.py` and `yield_connector.py` are deliberately separate so that
+code paths needing only a yield prediction never import TensorFlow.
+
+---
+
+## Tests
+
+```bash
+pytest tests/ -v
+```
+
+22 tests across three suites:
+
+- **Yield service** — verifies the lookup wrapper reproduces the training
+  notebook's predictions across all region-crop combinations
+- **Registry and dashboard** — plot registration, risk mapping, Farm Health Score
+  arithmetic, and isolation between farms
+- **A\* router** — path costs checked against an independent Dijkstra
+  implementation on a hand-built adversarial grid and ten randomised grids
+
+---
+
+## Known limitations
+
+- **Yield predictions are regional, not farm-specific.** Soil is one 2018 survey
+  value per region and rainfall one value per region-year, so two farms in the
+  same region receive identical predictions. Interface copy reads *"typical for
+  maize in Ashanti"* rather than *"your farm's yield."*
+- **Selection bias in the training data.** Ghana's Ministry of Food and
+  Agriculture publishes yields only for the ten best-performing districts per
+  crop, so the model has never seen an average farm and predicts optimistically —
+  4.2 Mt/Ha for maize in Ashanti against a national average of 2.60. Every
+  prediction is returned with a range and an `"indicative"` confidence label.
+- **The disease model is trained on laboratory images.** PlantVillage photographs
+  use uniform backgrounds and controlled lighting. Accuracy on real field photos
+  taken with a phone will be lower; field validation is the top priority for
+  further work.
+- **No authentication.** Any registered plot is reachable by farm ID. Acceptable
+  for a prototype, not for real farmers' data.
+- **Weather advice is short-horizon.** The OpenWeatherMap free tier provides a
+  5-day/3-hour forecast, so all advice is tactical rather than seasonal.
+
+---
+
+## Team
+
+| Member | Module |
+|---|---|
+| Louisa-Lois Adjoka | Project management, frontend, system integration |
+| Kwasi Bekae Ackonor | Computer vision — CNN disease detection |
+| Chrishelle Wiafe | Machine learning — yield prediction and evaluation |
+| Daniel Ekpale | Search algorithms, backend, testing and deployment |
+
+AI tool use is declared in Appendix A of the final report, per the course's
+Responsible Use of AI Tools and Agents policy.
