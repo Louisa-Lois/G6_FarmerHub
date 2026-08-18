@@ -895,7 +895,7 @@ async function loadDashboardData() {
     try {
         const farmId = getFarmId();
         
-        // Fetch both health data AND plot details simultaneously
+        // 1. Fetch BOTH health data and plot metadata (to get the crop names)
         const [healthRes, plotsRes] = await Promise.all([
             fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`),
             fetch(`${API_BASE}/plots?farm_id=${encodeURIComponent(farmId)}`)
@@ -909,7 +909,7 @@ async function loadDashboardData() {
         const data = await healthRes.json();
         const plotsData = await plotsRes.json();
         
-        // Map coordinates to crop types
+        // 2. Map coordinates to crop types
         const cropMap = {};
         if (plotsData.plots) {
             plotsData.plots.forEach(p => {
@@ -917,8 +917,7 @@ async function loadDashboardData() {
             });
         }
 
-
-        // 1. Update Farm Health Score
+        // 3. Update Farm Health Score
         healthScoreEl.textContent = `${Math.round(data.farm_health_score)}%`;
         if (data.farm_health_score < 0.5) {
             healthScoreEl.className = "text-6xl font-bold text-red-500 relative z-10";
@@ -928,7 +927,7 @@ async function loadDashboardData() {
             healthScoreEl.className = "text-6xl font-bold text-brand-accent relative z-10";
         }
 
-        // 2. Update Weather Summary
+        // 4. Update Weather Summary
         const weather = data.weather_summary;
         
         document.getElementById('card-humidity').textContent = `${weather.humidity}%`;
@@ -945,23 +944,18 @@ async function loadDashboardData() {
             weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
         }
         
-        // Use planting message if available, otherwise generic weather message
         weatherMessage.textContent = weather.planting_message || 
             (weather.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
 
-        // 3. Clear existing plots and alerts
+        // 5. Clear existing plots and alerts
         alertsContainer.innerHTML = '';
         plotsContainer.innerHTML = '';
-        
-        // Track risks for the Route Planner
         plotRisks = {};
 
-        // 4. Populate Plots and Alerts
+        // 6. Populate Dynamic Plots and Alerts
         Object.entries(data.plots).forEach(([coords, plot]) => {
-            // Update route planner state globally
             plotRisks[coords] = plot.urgency;
 
-            // --- Generate Alert Item (if urgency is high) ---
             if (plot.urgency >= 0.6 || plot.recommendation) {
                 let alertColor = plot.urgency >= 0.8 ? 'red' : 'yellow';
                 alertsContainer.innerHTML += `
@@ -972,7 +966,6 @@ async function loadDashboardData() {
                 `;
             }
 
-            // --- Generate Plot Card ---
             let statusBadge = "Healthy";
             let badgeClass = "bg-green-100 text-green-800";
             let progressColor = "bg-green-500";
@@ -987,24 +980,26 @@ async function loadDashboardData() {
                 progressColor = "bg-yellow-400";
             }
 
-            // Calculate health percentage (inverse of urgency)
             const healthPct = Math.max(0, Math.round((1 - plot.urgency) * 100));
             const [plotR, plotC] = coords.split(',').map(n => n.trim());
-
-            // Retrieve crop type from our map
+            
+            // 7. Inject the crop type dynamically
             const cropType = cropMap[coords] || 'UNKNOWN';
             
-            // Apply dynamic colors matching the mockup
-            let cropColor = "bg-gray-100 text-gray-600"; // Default
+            // Add dynamic color styling based on the crop type
+            let cropColor = "bg-gray-100 text-gray-600";
             if (cropType === 'MAIZE') cropColor = "bg-brand-light bg-opacity-20 text-brand-dark";
-            if (cropType === 'CASSAVA') cropColor = "bg-yellow-200 text-yellow-800";
+            else if (cropType === 'CASSAVA') cropColor = "bg-yellow-200 text-yellow-800";
+            else if (cropType === 'RICE') cropColor = "bg-blue-100 text-blue-800";
+            else cropColor = "bg-brand-light bg-opacity-20 text-brand-dark"; // Generic fallback
 
             plotsContainer.innerHTML += `
                 <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition relative group">
                     <div class="flex justify-between items-start mb-3">
                         <div>
-                            <span class="${cropColor} text-[10px] font-bold px-2 py-1 rounded tracking-wide inline-block">${cropType}</span>
-                            <h4 class="font-bold mt-1 text-gray-800">Plot (${coords})</h4>
+                            <!-- The Missing Crop Badge -->
+                            <span class="${cropColor} text-[10px] font-bold px-2 py-1 rounded tracking-wide inline-block mb-1">${cropType}</span>
+                            <h4 class="font-bold mt-0.5 text-gray-800">Plot (${coords})</h4>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
@@ -1031,7 +1026,6 @@ async function loadDashboardData() {
             `;
         });
 
-        // If no alerts were generated, show a clean state
         if (alertsContainer.innerHTML === '') {
             alertsContainer.innerHTML = `
                 <li class="flex items-start gap-2 bg-green-50 p-2 rounded text-green-800 text-sm">
@@ -1042,7 +1036,6 @@ async function loadDashboardData() {
         }
 
     } catch (err) {
-        // Fallback UI if backend is unvailable or no plots are registered
         plotsContainer.innerHTML = `
             <div class="col-span-full p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl">
                 <i class="fa-solid fa-seedling text-3xl text-gray-400 mb-3 block"></i>
@@ -1057,6 +1050,7 @@ async function loadDashboardData() {
         healthScoreEl.textContent = "--";
     }
 }
+
 // Helper for deleting a plot
 async function deletePlot(farmId, row, col) {
     if (!confirm(`Delete Plot (${row}, ${col}) from Farm '${farmId}'?`)) return;
