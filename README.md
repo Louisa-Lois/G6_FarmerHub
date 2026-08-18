@@ -86,7 +86,8 @@ Weather advice uses the OpenWeatherMap free tier. Get a key at
 [openweathermap.org/api](https://openweathermap.org/api), then:
 
 ```bash
-copy .env.example .env
+
+
 ```
 
 Edit `.env` and insert your own key:
@@ -104,6 +105,8 @@ safe, returning the more cautious recommendation rather than no alert.
 
 ```bash
 uvicorn main:app --reload
+or 
+python -m uvicorn main:app --reload
 ```
 
 Loading the scikit-learn and TensorFlow models takes roughly 10–15 seconds on
@@ -114,7 +117,6 @@ first boot. Then open:
   endpoint can be exercised without the frontend
 
 ---
-
 ## Usage example
 
 **1. Register a plot.** In the *My Farm* tab, register a plot at grid

@@ -894,14 +894,29 @@ async function loadDashboardData() {
 
     try {
         const farmId = getFarmId();
-        const response = await fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`);
         
-        if (!response.ok) {
-            const err = await response.json();
+        // Fetch both health data AND plot details simultaneously
+        const [healthRes, plotsRes] = await Promise.all([
+            fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`),
+            fetch(`${API_BASE}/plots?farm_id=${encodeURIComponent(farmId)}`)
+        ]);
+        
+        if (!healthRes.ok) {
+            const err = await healthRes.json();
             throw new Error(err.detail || "Failed to load dashboard data");
         }
 
-        const data = await response.json();
+        const data = await healthRes.json();
+        const plotsData = await plotsRes.json();
+        
+        // Map coordinates to crop types
+        const cropMap = {};
+        if (plotsData.plots) {
+            plotsData.plots.forEach(p => {
+                cropMap[`${p.row},${p.col}`] = p.crop;
+            });
+        }
+
 
         // 1. Update Farm Health Score
         healthScoreEl.textContent = `${Math.round(data.farm_health_score)}%`;
