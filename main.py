@@ -55,7 +55,9 @@ PHOTO_UPLOAD_DIR = "uploaded_plot_photos"
 os.makedirs(PHOTO_UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="FarmerHub AI Backend", version="0.1.0")
-app.mount("/uploaded_plot_photos", StaticFiles(directory=PHOTO_UPLOAD_DIR), name="photos")
+app.mount(
+    "/uploaded_plot_photos", StaticFiles(directory=PHOTO_UPLOAD_DIR), name="photos"
+)
 
 
 # ---------------------------------------------------------------------
@@ -259,7 +261,8 @@ class RouteRequest(BaseModel):
         ..., description='Keys as "row,col" strings, e.g. {"3,4": 0.82}'
     )
     target: list[int] | None = Field(
-        default=None, description="Optional [row, col] for single-target direct A* navigation"
+        default=None,
+        description="Optional [row, col] for single-target direct A* navigation",
     )
     threshold: float = 0.6
     plot_size_meters: float = 8.0
@@ -336,7 +339,9 @@ def plan_route_endpoint(req: RouteRequest):
         result = plan_single_route(grid, start, target, risk_weights)
     else:
         priority_plots = [
-            p for p, r in risk_weights.items() if r >= req.threshold and grid.get(p, False)
+            p
+            for p, r in risk_weights.items()
+            if r >= req.threshold and grid.get(p, False)
         ]
         result = plan_route(grid, start, priority_plots, risk_weights)
 
@@ -406,7 +411,9 @@ class PlotRegistrationRequest(BaseModel):
     region: str = Field(..., examples=["ASHANTI"])
     district: str = Field(..., examples=["AMANSIE WEST"])
     crop: str = Field(..., examples=["MAIZE"])
-    farm_id: str = Field(default="default_farm", examples=["default_farm", "north_farm"])
+    farm_id: str = Field(
+        default="default_farm", examples=["default_farm", "north_farm"]
+    )
     overrides: dict[str, float] | None = Field(
         default=None,
         description="Optional real soil-test values to override district "
@@ -488,7 +495,12 @@ class PlotHealth(BaseModel):
     urgency: float
     yield_risk: float
     disease_risk: float
-    recommendation: str | None
+    recommendation: str | None = None
+    farm_id: str | None = None
+    crop: str | None = None
+    region: str | None = None
+    district: str | None = None
+    soil_ph: float | None = None
 
 
 class WeatherSummary(BaseModel):
@@ -541,7 +553,9 @@ def farm_health_endpoint(
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Weather API request failed: {e}")
 
-    result = compute_farm_health(yield_risk_map, disease_risk_map, weather_advice)
+    result = compute_farm_health(
+        yield_risk_map, disease_risk_map, weather_advice, plots_data=plots_data
+    )
     result["plots"] = {f"{r},{c}": v for (r, c), v in result["plots"].items()}
 
     return FarmHealthResponse(**result)

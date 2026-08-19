@@ -151,37 +151,57 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="dashboard-plots-container">
                     <!-- Example Plot Card -->
                     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <span class="bg-brand-light bg-opacity-20 text-brand-dark text-xs font-bold px-2 py-1 rounded">MAIZE</span>
-                                <h4 class="font-bold mt-1">Plot (0,0)</h4>
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="bg-brand-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <i class="fa-solid fa-house-chimney text-[8px]"></i> test farm
+                                </span>
+                                <span class="bg-brand-light bg-opacity-30 text-brand-dark text-xs font-extrabold px-2 py-0.5 rounded uppercase">MAIZE</span>
                             </div>
-                            <span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">Healthy</span>
+                            <span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
                         </div>
-                        <div class="space-y-2 text-sm text-gray-600 mb-3">
+                        <div class="mb-2">
+                            <h4 class="font-bold text-gray-800 text-sm">Plot (0, 0)</h4>
+                            <div class="text-xs text-gray-500 mt-0.5">AMANSIE WEST, ASHANTI</div>
+                        </div>
+                        <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
                             <div class="flex justify-between"><span>Yield Risk:</span> <span class="font-medium">12%</span></div>
                             <div class="flex justify-between"><span>Disease Risk:</span> <span class="font-medium">0%</span></div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                        <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
                             <div class="bg-green-500 h-1.5 rounded-full" style="width: 88%"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-gray-400 font-medium">pH 6.20</span>
+                            <span class="text-[9px] text-gray-400 font-semibold">HEALTH: 88%</span>
                         </div>
                     </div>
                     
                     <!-- Example Plot Card 2 (At Risk) -->
                     <div class="bg-white rounded-xl p-4 shadow-sm border border-red-200 hover:shadow-md transition">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded">CASSAVA</span>
-                                <h4 class="font-bold mt-1">Plot (2,1)</h4>
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="bg-brand-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <i class="fa-solid fa-house-chimney text-[8px]"></i> test farm
+                                </span>
+                                <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded uppercase">CASSAVA</span>
                             </div>
-                            <span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">At Risk</span>
+                            <span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">At Risk</span>
                         </div>
-                        <div class="space-y-2 text-sm text-gray-600 mb-3">
+                        <div class="mb-2">
+                            <h4 class="font-bold text-gray-800 text-sm">Plot (2, 1)</h4>
+                            <div class="text-xs text-gray-500 mt-0.5">AYENSUANO, EASTERN</div>
+                        </div>
+                        <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
                             <div class="flex justify-between"><span>Yield Risk:</span> <span class="font-medium">45%</span></div>
                             <div class="flex justify-between text-red-600"><span>Disease Risk:</span> <span class="font-bold">82%</span></div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                        <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
                             <div class="bg-red-500 h-1.5 rounded-full" style="width: 18%"></div>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-gray-400 font-medium">pH 5.95</span>
+                            <span class="text-[9px] text-gray-400 font-semibold">HEALTH: 18%</span>
                         </div>
                     </div>
                 </div>
@@ -894,30 +914,34 @@ async function loadDashboardData() {
 
     try {
         const farmId = getFarmId();
+        const region = document.getElementById('top-region-select')?.value;
+        const regionQuery = region ? `&region=${encodeURIComponent(region)}` : '';
+        const response = await fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}${regionQuery}`);
         
-        // 1. Fetch BOTH health data and plot metadata (to get the crop names)
-        const [healthRes, plotsRes] = await Promise.all([
-            fetch(`${API_BASE}/farm-health?farm_id=${encodeURIComponent(farmId)}`),
-            fetch(`${API_BASE}/plots?farm_id=${encodeURIComponent(farmId)}`)
-        ]);
-        
-        if (!healthRes.ok) {
-            const err = await healthRes.json();
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ detail: response.statusText }));
+            if (response.status === 400 && err.detail && err.detail.includes("No plots registered")) {
+                // Clean empty farm state
+                plotsContainer.innerHTML = `
+                    <div class="col-span-full p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl">
+                        <i class="fa-solid fa-seedling text-3xl text-gray-400 mb-3 block"></i>
+                        <h3 class="text-gray-700 font-bold mb-1">No Plots Registered Yet</h3>
+                        <p class="text-xs text-gray-500 mb-4">Register your first plot under farm '<strong>${farmId}</strong>' to start monitoring yield and disease risk.</p>
+                        <button onclick="switchTab('my-farm')" class="bg-brand-dark text-white text-xs font-bold px-4 py-2 rounded shadow hover:bg-opacity-90 transition">
+                            <i class="fa-solid fa-plus mr-1"></i> Register Your First Plot
+                        </button>
+                    </div>
+                `;
+                alertsContainer.innerHTML = `<li class="text-gray-400 text-xs italic">No alerts — register a plot to begin monitoring.</li>`;
+                healthScoreEl.textContent = "--";
+                return;
+            }
             throw new Error(err.detail || "Failed to load dashboard data");
         }
 
-        const data = await healthRes.json();
-        const plotsData = await plotsRes.json();
-        
-        // 2. Map coordinates to crop types
-        const cropMap = {};
-        if (plotsData.plots) {
-            plotsData.plots.forEach(p => {
-                cropMap[`${p.row},${p.col}`] = p.crop;
-            });
-        }
+        const data = await response.json();
 
-        // 3. Update Farm Health Score
+        // 1. Update Farm Health Score
         healthScoreEl.textContent = `${Math.round(data.farm_health_score)}%`;
         if (data.farm_health_score < 0.5) {
             healthScoreEl.className = "text-6xl font-bold text-red-500 relative z-10";
@@ -927,7 +951,7 @@ async function loadDashboardData() {
             healthScoreEl.className = "text-6xl font-bold text-brand-accent relative z-10";
         }
 
-        // 4. Update Weather Summary
+        // 2. Update Weather Summary
         const weather = data.weather_summary;
         
         document.getElementById('card-humidity').textContent = `${weather.humidity}%`;
@@ -944,18 +968,23 @@ async function loadDashboardData() {
             weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
         }
         
+        // Use planting message if available, otherwise generic weather message
         weatherMessage.textContent = weather.planting_message || 
             (weather.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
 
-        // 5. Clear existing plots and alerts
+        // 3. Clear existing plots and alerts
         alertsContainer.innerHTML = '';
         plotsContainer.innerHTML = '';
+        
+        // Track risks for the Route Planner
         plotRisks = {};
 
-        // 6. Populate Dynamic Plots and Alerts
+        // 4. Populate Plots and Alerts
         Object.entries(data.plots).forEach(([coords, plot]) => {
+            // Update route planner state globally
             plotRisks[coords] = plot.urgency;
 
+            // --- Generate Alert Item (if urgency is high) ---
             if (plot.urgency >= 0.6 || plot.recommendation) {
                 let alertColor = plot.urgency >= 0.8 ? 'red' : 'yellow';
                 alertsContainer.innerHTML += `
@@ -966,6 +995,7 @@ async function loadDashboardData() {
                 `;
             }
 
+            // --- Generate Plot Card ---
             let statusBadge = "Healthy";
             let badgeClass = "bg-green-100 text-green-800";
             let progressColor = "bg-green-500";
@@ -980,52 +1010,59 @@ async function loadDashboardData() {
                 progressColor = "bg-yellow-400";
             }
 
+            // Calculate health percentage (inverse of urgency)
             const healthPct = Math.max(0, Math.round((1 - plot.urgency) * 100));
             const [plotR, plotC] = coords.split(',').map(n => n.trim());
-            
-            // 7. Inject the crop type dynamically
-            const cropType = cropMap[coords] || 'UNKNOWN';
-            
-            // Add dynamic color styling based on the crop type
-            let cropColor = "bg-gray-100 text-gray-600";
-            if (cropType === 'MAIZE') cropColor = "bg-brand-light bg-opacity-20 text-brand-dark";
-            else if (cropType === 'CASSAVA') cropColor = "bg-yellow-200 text-yellow-800";
-            else if (cropType === 'RICE') cropColor = "bg-blue-100 text-blue-800";
-            else cropColor = "bg-brand-light bg-opacity-20 text-brand-dark"; // Generic fallback
+            const plotFarmId = plot.farm_id || farmId;
+            const locationParts = [plot.district, plot.region].filter(Boolean);
+            const locationStr = locationParts.join(', ');
 
             plotsContainer.innerHTML += `
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition relative group">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <!-- The Missing Crop Badge -->
-                            <span class="${cropColor} text-[10px] font-bold px-2 py-1 rounded tracking-wide inline-block mb-1">${cropType}</span>
-                            <h4 class="font-bold mt-0.5 text-gray-800">Plot (${coords})</h4>
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition relative group flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="bg-brand-dark text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <i class="fa-solid fa-house-chimney text-[8px]"></i> ${plotFarmId}
+                                </span>
+                                ${plot.crop ? `<span class="bg-brand-light bg-opacity-30 text-brand-dark text-xs font-extrabold px-2 py-0.5 rounded uppercase">${plot.crop}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
+                                <button onclick="deletePlot('${plotFarmId}', ${plotR}, ${plotC})" title="Delete Plot" class="text-gray-300 hover:text-red-600 transition p-0.5 text-xs">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="${badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">${statusBadge}</span>
-                            <button onclick="deletePlot('${farmId}', ${plotR}, ${plotC})" title="Delete Plot" class="text-gray-300 hover:text-red-600 transition p-0.5 text-xs">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                        <div class="mb-2">
+                            <h4 class="font-bold text-gray-800 text-sm">Plot (${coords})</h4>
+                            ${locationStr ? `<div class="text-xs text-gray-500 mt-0.5">${locationStr}</div>` : ''}
+                        </div>
+                        <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
+                            <div class="flex justify-between">
+                                <span>Yield Risk:</span> 
+                                <span class="${plot.yield_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.yield_risk * 100)}%</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Disease Risk:</span> 
+                                <span class="${plot.disease_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.disease_risk * 100)}%</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="space-y-2 text-xs text-gray-600 mb-3 border-t border-gray-50 pt-2">
-                        <div class="flex justify-between">
-                            <span>Yield Risk:</span> 
-                            <span class="${plot.yield_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.yield_risk * 100)}%</span>
+                    <div>
+                        <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+                            <div class="${progressColor} h-1.5 rounded-full transition-all duration-1000" style="width: ${healthPct}%"></div>
                         </div>
-                        <div class="flex justify-between">
-                            <span>Disease Risk:</span> 
-                            <span class="${plot.disease_risk > 0.5 ? 'text-red-600 font-bold' : 'font-medium'}">${Math.round(plot.disease_risk * 100)}%</span>
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-gray-400 font-medium">${plot.soil_ph ? 'pH ' + plot.soil_ph : ''}</span>
+                            <span class="text-[9px] text-gray-400 font-semibold">HEALTH: ${healthPct}%</span>
                         </div>
                     </div>
-                    <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1">
-                        <div class="${progressColor} h-1.5 rounded-full transition-all duration-1000" style="width: ${healthPct}%"></div>
-                    </div>
-                    <div class="text-[9px] text-right text-gray-400 font-semibold mt-1">HEALTH: ${healthPct}%</div>
                 </div>
             `;
         });
 
+        // If no alerts were generated, show a clean state
         if (alertsContainer.innerHTML === '') {
             alertsContainer.innerHTML = `
                 <li class="flex items-start gap-2 bg-green-50 p-2 rounded text-green-800 text-sm">
@@ -1036,6 +1073,7 @@ async function loadDashboardData() {
         }
 
     } catch (err) {
+        // Fallback UI if backend is unvailable or no plots are registered
         plotsContainer.innerHTML = `
             <div class="col-span-full p-8 text-center bg-gray-50 border border-dashed border-gray-300 rounded-xl">
                 <i class="fa-solid fa-seedling text-3xl text-gray-400 mb-3 block"></i>
@@ -1050,7 +1088,6 @@ async function loadDashboardData() {
         healthScoreEl.textContent = "--";
     }
 }
-
 // Helper for deleting a plot
 async function deletePlot(farmId, row, col) {
     if (!confirm(`Delete Plot (${row}, ${col}) from Farm '${farmId}'?`)) return;
@@ -1119,7 +1156,17 @@ async function loadManagedPlots() {
             </div>
         `).join('');
     } catch (err) {
-        container.innerHTML = `<p class="text-xs text-red-500 col-span-full py-4 text-center">Error loading plots: ${err.message}</p>`;
+        const isOffline = err.message.toLowerCase().includes('failed to fetch') || err.message.toLowerCase().includes('network');
+        container.innerHTML = `
+            <div class="col-span-full p-6 text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl">
+                <i class="fa-solid fa-circle-exclamation text-2xl text-amber-500 mb-2 block"></i>
+                <p class="text-xs text-gray-700 font-bold mb-1">${isOffline ? 'Connecting to Backend Server...' : 'Unable to load plots'}</p>
+                <p class="text-[11px] text-gray-500 mb-3">${isOffline ? 'Make sure your backend server is running with <code>uvicorn main:app --reload</code>' : err.message}</p>
+                <button type="button" onclick="loadManagedPlots()" class="bg-brand-bg hover:bg-gray-200 text-brand-dark px-3 py-1 rounded text-xs font-bold transition">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Retry
+                </button>
+            </div>
+        `;
     }
 }
 
@@ -1150,35 +1197,41 @@ async function updateTopWeather() {
         });
         if (!res.ok) throw new Error("Failed to fetch weather");
         const data = await res.json();
-        
-        // 1. Update Top Widget
         textEl.textContent = `${data.temp}°C | ${data.rain_amount_mm}mm Rain`;
-        
-        // 2. Update the Big Dashboard Weather Card
-        document.getElementById('card-humidity').textContent = `${data.humidity}%`;
-        document.getElementById('card-wind').textContent = `${data.wind_speed}m/s`;
-        document.getElementById('card-temp').textContent = `${data.temp}°C`;
-        
+
+        // Update dashboard cards dynamically in real-time
+        const cardHum = document.getElementById('card-humidity');
+        const cardWind = document.getElementById('card-wind');
+        const cardTemp = document.getElementById('card-temp');
         const weatherBadge = document.getElementById('weather-badge');
         const weatherMessage = document.getElementById('weather-message');
-        
-        if (data.rain_expected_48h) {
-            weatherBadge.textContent = "Rain Expected";
-            weatherBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
-        } else if (data.irrigation_alert) {
-            weatherBadge.textContent = "Irrigation Alert";
-            weatherBadge.className = "bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
-        } else {
-            weatherBadge.textContent = "Clear Skies";
-            weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
-        }
-        
-        weatherMessage.textContent = data.planting_message || 
-            (data.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
 
+        if (cardHum && data.humidity !== undefined) cardHum.textContent = `${data.humidity}%`;
+        if (cardWind && data.wind_speed !== undefined) cardWind.textContent = `${data.wind_speed}m/s`;
+        if (cardTemp && data.temp !== undefined) cardTemp.textContent = `${data.temp}°C`;
+
+        if (weatherBadge) {
+            if (data.rain_expected_48h) {
+                weatherBadge.textContent = "Rain Expected";
+                weatherBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+            } else if (data.irrigation_alert) {
+                weatherBadge.textContent = "Irrigation Alert";
+                weatherBadge.className = "bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+            } else {
+                weatherBadge.textContent = "Clear Skies";
+                weatherBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full";
+            }
+        }
+        if (weatherMessage) {
+            weatherMessage.textContent = data.planting_message || 
+                (data.rain_expected_48h ? "Rainfall expected in the next 48 hours. Delay chemical spraying." : "Conditions are stable. Proceed with standard schedule.");
+        }
     } catch (err) {
         textEl.textContent = "Offline (Fallback)";
     }
+
+    // Refresh plot urgency and dashboard data with the selected region
+    loadDashboardData();
 }
 
 // Update the existing switchTab function (which is inside the first <script> tag near the HTML tabs) 

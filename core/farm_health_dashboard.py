@@ -32,6 +32,7 @@ def compute_farm_health(
     risk_threshold=0.5,
     spray_boost=0.15,
     irrigation_boost=0.10,
+    plots_data=None,
 ):
     """
     yield_risk_map: dict (row,col) -> yield risk 0-1
@@ -40,11 +41,12 @@ def compute_farm_health(
                      (from disease_connector.get_disease_risk_map;
                      only plots with an uploaded photo appear here)
     weather_advice: dict returned by weather.get_weather_advice()
+    plots_data: optional dict (row,col) -> plot metadata dict
 
     Returns:
       {
         "farm_health_score": 0-100, higher = healthier,
-        "plots": { (row,col): {urgency, yield_risk, disease_risk, recommendation} },
+        "plots": { (row,col): {urgency, yield_risk, disease_risk, recommendation, farm_id, crop, region, district, soil_ph} },
         "weather_summary": {...}
       }
     """
@@ -74,11 +76,18 @@ def compute_farm_health(
             urgency = min(1.0, urgency + irrigation_boost)
             recommendation = irrigation_msg
 
+        plot_meta = plots_data.get(plot, {}) if plots_data else {}
+
         plots[plot] = {
             "urgency": round(urgency, 3),
             "yield_risk": round(y_risk, 3),
             "disease_risk": round(d_risk, 3),
             "recommendation": recommendation,
+            "farm_id": plot_meta.get("farm_id"),
+            "crop": plot_meta.get("crop"),
+            "region": plot_meta.get("region"),
+            "district": plot_meta.get("district"),
+            "soil_ph": plot_meta.get("soil_ph"),
         }
 
     avg_risk = sum(p["urgency"] for p in plots.values()) / len(plots) if plots else 0.0
