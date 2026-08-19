@@ -68,38 +68,132 @@ git lfs pull        # fetches the CNN model
 
 Verify the model downloaded properly — it should be ~174 MB, not ~130 bytes:
 
+On macOS/Linux:
+
 ```bash
 ls -lh models/farmerhub_disease_model.keras
 ```
 
+On Windows CMD:
+
+```cmd
+dir models\farmerhub_disease_model.keras
+```
+
+If Git LFS is working correctly, the model should be approximately 178 MB. A file that is only a few bytes or around 130 bytes indicates that the Git LFS object has not been downloaded correctly.
+
 ### 3. Virtual environment
 
-```bash
+FarmerHub requires Python 3.11.
+
+The virtual environment activation command differs by operating system.
+
+### Windows CMD
+
+Create the virtual environment:
+
+```cmd
+py -3.11 -m venv venv
+or
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
 ```
+
+Activate it:
+
+```cmd
+venv\Scripts\activate
+```
+
+You should see `(venv)` at the beginning of your command prompt.
+
+### Windows PowerShell
+
+Create the virtual environment:
+
+```powershell
+py -3.11 -m venv venv
+```
+
+Activate it:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+### macOS/Linux
+
+Create the virtual environment:
+
+```bash
+python3.11 -m venv venv
+```
+
+Activate it:
+
+```bash
+source venv/bin/activate
+
+## Install Dependencies
+
+After activating the virtual environment, install the project dependencies:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Using `python -m pip` ensures that pip runs through the Python interpreter associated with the active virtual environment.
+
+The project uses pinned dependency versions, including:
+
+- FastAPI
+- Uvicorn
+- scikit-learn
+- pandas
+- NumPy
+- TensorFlow CPU
+- Pillow
+- python-dotenv
+- requests
+- pytest
 
 ### 4. Weather API key
 
 Weather advice uses the OpenWeatherMap free tier. Get a key at
 [openweathermap.org/api](https://openweathermap.org/api), then:
 
+## Configure the Weather API
+
+FarmerHub uses the OpenWeatherMap API for weather-based farming advice.
+
+The API key is not included in the repository. Each user should provide their own API key.
+
+First, create a `.env` file from the provided example.
+
+### Windows CMD
+
+```cmd
+copy .env.example .env
+```
+
+### macOS/Linux
+
 ```bash
-
-
+cp .env.example .env
 ```
 
-Edit `.env` and insert your own key:
+Open the `.env` file and add your OpenWeatherMap API key:
 
-```
+```env
 OWM_API_KEY=your_api_key_here
 ```
 
-Everything except the weather module works without a key; weather endpoints fail
-safe, returning the more cautious recommendation rather than no alert.
+Replace `your_api_key_here` with your own OpenWeatherMap API key.
 
----
+Do not commit your `.env` file or your API key to GitHub.
+
+The `.env.example` file is provided as a template so that other developers know which environment variables they need to configure.
+
+The weather module requires an OpenWeatherMap API key. Other FarmerHub functionality can run without the key. If the weather API is unavailable, the weather functionality returns the application's safer fallback recommendation.
 
 ## Running the system
 
